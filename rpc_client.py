@@ -3,7 +3,7 @@ import pika
 import uuid
 import time
 
-POLL_INTERVAL = 0.1
+PROCESS_TIME_LIMIT = 15
 
 class FibonacciRpcClient(object):
 
@@ -23,7 +23,6 @@ class FibonacciRpcClient(object):
             auto_ack=True)
 
     def on_response(self, ch, method, props, body):
-        # TODO: add multiple concurrent call handling?
         if self.corr_id == props.correlation_id:
             self.response = body
 
@@ -39,20 +38,18 @@ class FibonacciRpcClient(object):
             ),
             body=str(n))
 
-        while self.response is None:
-            # TODO: add sleep here.
-            # TODO: add timeout.
+        self.connection.process_data_events(time_limit=PROCESS_TIME_LIMIT)
 
-            time.sleep(POLL_INTERVAL)
-            self.connection.process_data_events()
-
-        return int(self.response)
+        return self.response
 
 
 fibonacci_rpc = FibonacciRpcClient()
 
-import random
-nb = random.randint(1, 30)
+import sys
+nb = sys.argv[1]
 print(" [x] Requesting fib(%s)" % (nb,))
 response = fibonacci_rpc.call(nb)
-print(" [.] Got %r" % response)
+if response:
+    print(" [.] Got %r" % response)
+else:
+    print(" [-] Timeout :(")
