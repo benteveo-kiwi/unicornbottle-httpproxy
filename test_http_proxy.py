@@ -1,5 +1,7 @@
-from rpc_client import HTTPProxyClient, TimeoutException
+from rpc_client import HTTPProxyClient, TimeoutException, Request
 from unittest.mock import MagicMock
+import base64
+import json
 import pika
 import unittest
 import uuid
@@ -59,6 +61,23 @@ class TestHttpProxy(unittest.TestCase):
 
         with self.assertRaises(TimeoutException):
             ret = hpc.call("param")
+    
+    def test_request_encoder(self):
+        host = "www.example.org"
+        port = 80
+        proto = "http"
+        bytes = b"lalalala"
+
+        req = Request(host, port, proto, bytes)
+
+        j = req.toJSON()
+        decoded = json.loads(j)
+
+        self.assertEqual(decoded['host'], host)
+        self.assertEqual(decoded['port'], port)
+        self.assertEqual(decoded['protocol'], proto)
+        self.assertEqual(base64.b64decode(decoded['bytes']), bytes)
+
 
 if __name__ == '__main__':
     unittest.main()

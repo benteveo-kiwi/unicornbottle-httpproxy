@@ -3,12 +3,24 @@ import pika
 import sys
 import time
 import uuid
+import json
+import base64
 
 # notes:
 # https://stackoverflow.com/questions/28626213/mitm-proxy-getting-entire-request-and-response-string
 # https://stackoverflow.com/questions/65553910/how-to-simulate-timeout-in-mitmproxy-addon
 
 PROCESS_TIME_LIMIT = 15
+
+class Request(object):
+    def __init__(self, host, port, protocol, bytes):
+        self.host = host
+        self.port = port
+        self.protocol = protocol
+        self.bytes = base64.b64encode(bytes).decode('ascii')
+
+    def toJSON(self):
+        return json.dumps(self.__dict__)
 
 class TimeoutException(Exception):
     pass
