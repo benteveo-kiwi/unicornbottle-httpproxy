@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+from mitmproxy.script import concurrent
 import pika
 import sys
 import time
 import uuid
 import json
 import base64
+import rabbitmq
 
 # notes:
 # https://stackoverflow.com/questions/28626213/mitm-proxy-getting-entire-request-and-response-string
@@ -93,13 +95,34 @@ class HTTPProxyClient(object):
 
         return self.response
 
+@concurrent
+def request(flow):
+    """
+    Main mitmproxy entry point. This function gets called on each request
+    received after mitmproxy handles all the underlying HTTP shenanigans.
+
+    For more documentation, you can run the following command:
+
+    pydoc3 mitmproxy.http
+    pydoc3 mitmproxy.net.http.request
+    """
+    connection = rabbitmq.new_connection()
+    http_proxy_client = HTTPProxyClient(connection)
+
+    mitmproxy_req = flow.request
+
+    req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, b"wfafawf")
+    response = http_proxy_client.call(req.toJSON())
+
+    try:
+        print(" [.] Got %r" % response)
+    except TimeoutException:
+        print(" [-] Timeout :(")
 
 if __name__ == "__main__":
-    credentials = pika.PlainCredentials('httpproxy', 'SHJfakkjawkjhfkawjaw')
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters('localhost', 5672, '/', credentials=credentials))
-
+    connection = rabbitmq.new_connection()
     http_proxy_client = HTTPProxyClient(connection)
+
     host = "www.example.org"
     port = 80
     proto = "http"
