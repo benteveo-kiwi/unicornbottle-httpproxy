@@ -99,12 +99,15 @@ if __name__ == "__main__":
     connection = pika.BlockingConnection(
         pika.ConnectionParameters('localhost', 5672, '/', credentials=credentials))
 
-    fibonacci_rpc = HTTPProxyClient(connection)
+    http_proxy_client = HTTPProxyClient(connection)
+    host = "www.example.org"
+    port = 80
+    proto = "http"
+    bytes = b"lalalala"
 
-    nb = sys.argv[1]
-    print(" [x] Requesting fib(%s)" % (nb,))
-    response = fibonacci_rpc.call(nb)
-    if response:
+    req = Request(host, port, proto, bytes)
+    response = http_proxy_client.call(req.toJSON())
+    try:
         print(" [.] Got %r" % response)
-    else:
+    except TimeoutException:
         print(" [-] Timeout :(")
