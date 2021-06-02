@@ -6,6 +6,7 @@ import uuid
 
 # notes:
 # https://stackoverflow.com/questions/28626213/mitm-proxy-getting-entire-request-and-response-string
+# https://stackoverflow.com/questions/65553910/how-to-simulate-timeout-in-mitmproxy-addon
 
 PROCESS_TIME_LIMIT = 15
 
@@ -20,16 +21,16 @@ class HTTPProxyClient(object):
     not thread-safe.
     """
 
-    def __init__(self):
+    def __init__(self, connection):
         """
         Connect to RabbitMQ. Creating a new connection per thread is OK per Pika's author 
         @see: https://github.com/pika/pika/issues/828#issuecomment-357773396
+        Args:
+            connection: a BlockingConnection instance.
         """
-        credentials = pika.PlainCredentials('httpproxy', 'SHJfakkjawkjhfkawjaw')
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters('localhost', 5672, '/', credentials=credentials))
-
+        self.connection = connection
         self.channel = self.connection.channel()
+        self.response = None
 
         # Create a queue for handling the responses.
         result = self.channel.queue_declare(queue='', exclusive=True)
@@ -40,7 +41,8 @@ class HTTPProxyClient(object):
             auto_ack=True)
 
     def on_response(self, ch, method, props, body):
-        """Gets called when a response is issued as per the RPC pattern.
+        """
+        Gets called when a response is issued as per the RPC pattern.
 
         Args: 
             see https://pika.readthedocs.io/en/stable/modules/channel.html#pika.channel.Channel.basic_consume
@@ -81,7 +83,11 @@ class HTTPProxyClient(object):
 
 
 if __name__ == "__main__":
-    fibonacci_rpc = HTTPProxyClient()
+    credentials = pika.PlainCredentials('httpproxy', 'SHJfakkjawkjhfkawjaw')
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters('localhost', 5672, '/', credentials=credentials))
+
+    fibonacci_rpc = HTTPProxyClient(connection)
 
     nb = sys.argv[1]
     print(" [x] Requesting fib(%s)" % (nb,))
