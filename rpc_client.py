@@ -1,12 +1,13 @@
 #!/usr/bin/env python
+from mitmproxy.net.http.http1 import assemble
 from mitmproxy.script import concurrent
+import base64
+import json
 import pika
+import rabbitmq
 import sys
 import time
 import uuid
-import json
-import base64
-import rabbitmq
 
 # notes:
 # https://stackoverflow.com/questions/28626213/mitm-proxy-getting-entire-request-and-response-string
@@ -90,6 +91,8 @@ class HTTPProxyClient(object):
 
         self.connection.process_data_events(time_limit=PROCESS_TIME_LIMIT)
 
+        self.connection.close()
+
         if not self.response:
             raise TimeoutException
 
@@ -109,9 +112,24 @@ def request(flow):
     connection = rabbitmq.new_connection()
     http_proxy_client = HTTPProxyClient(connection)
 
+    return _request(http_proxy_client, flow)
+
+def _request(http_proxy_client, flow):
+    """
+    Internal method to facilitate dependency injection for testing.
+
+    Args:
+        http_proxy_client: Instance of HTTPProxyClient
+        flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
+    """
+
     mitmproxy_req = flow.request
 
-    req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, b"wfafawf")
+    request = flow.request.copy()
+    request.decode(strict=False)
+    raw_request = assemble.assemble_request(request)
+
+    req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
     response = http_proxy_client.call(req.toJSON())
 
     try:
