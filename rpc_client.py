@@ -98,57 +98,61 @@ class HTTPProxyClient(object):
 
         return self.response
 
-@concurrent
-def request(flow):
+class HTTPProxyAddon(object):
     """
-    Main mitmproxy entry point. This function gets called on each request
-    received after mitmproxy handles all the underlying HTTP shenanigans.
-
-    For more documentation, you can run the following command:
-
-    pydoc3 mitmproxy.http
-    pydoc3 mitmproxy.net.http.request
-    """
-    connection = rabbitmq.new_connection()
-    http_proxy_client = HTTPProxyClient(connection)
-
-    return _request(http_proxy_client, flow)
-
-def _request(http_proxy_client, flow):
-    """
-    Internal method to facilitate dependency injection for testing.
-
-    Args:
-        http_proxy_client: Instance of HTTPProxyClient
-        flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
+    Handles integration with mitmproxy.
     """
 
-    mitmproxy_req = flow.request
+    @concurrent
+    def request(self, flow):
+        """
+        Main mitmproxy entry point. This function gets called on each request
+        received after mitmproxy handles all the underlying HTTP shenanigans.
 
-    request = flow.request.copy()
-    request.decode(strict=False)
-    raw_request = assemble.assemble_request(request)
+        For more documentation, you can run the following command:
 
-    req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
-    response = http_proxy_client.call(req.toJSON())
+        pydoc3 mitmproxy.http
+        pydoc3 mitmproxy.net.http.request
+        """
+        connection = rabbitmq.new_connection()
+        http_proxy_client = HTTPProxyClient(connection)
 
-    try:
-        print(" [.] Got %r" % response)
-    except TimeoutException:
-        print(" [-] Timeout :(")
+        return self._request(http_proxy_client, flow)
 
-if __name__ == "__main__":
-    connection = rabbitmq.new_connection()
-    http_proxy_client = HTTPProxyClient(connection)
+    def get_raw_request(self, flow):
+        """
+        Obtains the assembled raw bytes required for sending through a socket.
 
-    host = "www.example.org"
-    port = 80
-    proto = "http"
-    bytes = b"lalalala"
+        Args:
+            flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
+        """
+        request = flow.request.copy()
+        request.decode(strict=False)
+        raw_request = assemble.assemble_request(request)
+        
+        return raw_request
 
-    req = Request(host, port, proto, bytes)
-    response = http_proxy_client.call(req.toJSON())
-    try:
-        print(" [.] Got %r" % response)
-    except TimeoutException:
-        print(" [-] Timeout :(")
+    def _request(self, http_proxy_client, flow):
+        """
+        Internal method to facilitate dependency injection for testing.
+
+        Args:
+            http_proxy_client: Instance of HTTPProxyClient.
+            flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
+        """
+
+        mitmproxy_req = flow.request
+
+        raw_request = self.get_raw_request(flow)
+
+        req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
+        response = http_proxy_client.call(req.toJSON())
+
+        try:
+            print(" [.] Got %r" % response)
+        except TimeoutException:
+            print(" [-] Timeout :(")
+
+addons = [
+    HTTPProxyAddon()
+]

@@ -1,7 +1,6 @@
-from rpc_client import HTTPProxyClient, TimeoutException, Request
+from rpc_client import HTTPProxyClient, TimeoutException, Request, HTTPProxyAddon
 from unittest.mock import MagicMock
 import mitmproxy
-import rpc_client
 import base64
 import json
 import pika
@@ -14,7 +13,7 @@ class TestHttpProxy(unittest.TestCase):
         return MagicMock(spec=pika.BlockingConnection)
 
     def _mockHTTPClient(self):
-        return MagicMock(spec=rpc_client.HTTPProxyClient)
+        return MagicMock(spec=HTTPProxyClient)
 
     def _mockFlow(self):
         flow = MagicMock(spec=mitmproxy.http.HTTPFlow)
@@ -96,10 +95,17 @@ class TestHttpProxy(unittest.TestCase):
     def test_request_method(self):
         client = self._mockHTTPClient()
         flow = self._mockFlow()
-    
+        raw_request = b"raw_request"
 
-        rpc_client._request(client, flow)
+        addon = HTTPProxyAddon()
+        addon.get_raw_request = MagicMock(return_value=raw_request)
 
+        addon._request(client, flow)
+
+        # Ensure can parse JSON
+        rabbitRequest = json.loads(client.call.call_args.args[0])
+
+        self.assertEqual(rabbitRequest['host'], flow.request.host)
         
 if __name__ == '__main__':
     unittest.main()
