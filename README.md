@@ -32,3 +32,9 @@ To run an individual test:
 ```
 python3 -m unittest test_http_proxy.TestHttpProxy.test_request_encoder
 ```
+
+You can also run static type checks with: 
+
+```
+mypy http_proxy --exclude 'test.*'
+```

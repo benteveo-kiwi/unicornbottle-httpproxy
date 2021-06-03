@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+from http_proxy import rabbitmq
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.script import concurrent
+from typing import Dict, Any
 import base64
 import json
 import pika
-import rabbitmq
 import sys
 import time
 import uuid
@@ -16,16 +17,20 @@ import uuid
 PROCESS_TIME_LIMIT = 15
 
 class Request(object):
-    def __init__(self, host, port, protocol, bytes):
+    def __init__(self, host:str, port:int, protocol:str, bytes:bytes) -> None:
         self.host = host
         self.port = port
         self.protocol = protocol
         self.bytes = base64.b64encode(bytes).decode('ascii')
 
-    def toJSON(self):
-        return json.dumps(self.__dict__)
+    def toJSON(self) -> str:
+        data = self.__dict__
+        return json.dumps(data)
 
 class TimeoutException(Exception):
+    pass
+
+class AlreadyCalledException(Exception):
     pass
 
 class HTTPProxyClient(object):
@@ -36,13 +41,14 @@ class HTTPProxyClient(object):
     not thread-safe.
     """
 
-    def __init__(self, connection):
+    def __init__(self, connection : pika.BlockingConnection) -> None:
         """
         Connect to RabbitMQ. Creating a new connection per thread is OK per Pika's author 
         @see: https://github.com/pika/pika/issues/828#issuecomment-357773396
         Args:
             connection: a BlockingConnection instance.
         """
+        self.called_already = False
         self.connection = connection
         self.channel = self.connection.channel()
         self.response = None
@@ -55,7 +61,7 @@ class HTTPProxyClient(object):
             on_message_callback=self.on_response,
             auto_ack=True)
 
-    def on_response(self, ch, method, props, body):
+    def on_response(self, ch : pika.channel.Channel, method : pika.spec.Basic.Return, props : pika.spec.BasicProperties, body : bytes) -> None:
         """
         Gets called when a response is issued as per the RPC pattern.
 
@@ -77,6 +83,12 @@ class HTTPProxyClient(object):
         Raises:
             TimeoutException: PROCESS_TIME_LIMIT exceeded, request timeout.
         """
+
+        if self.called_already:
+            raise AlreadyCalledException()
+        else:
+            self.called_already = True
+
         self.response = None
 
         self.corr_id = str(uuid.uuid4())

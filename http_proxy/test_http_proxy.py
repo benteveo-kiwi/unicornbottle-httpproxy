@@ -1,4 +1,4 @@
-from rpc_client import HTTPProxyClient, TimeoutException, Request, HTTPProxyAddon
+from http_proxy.rpc_client import HTTPProxyClient, TimeoutException, Request, HTTPProxyAddon
 from unittest.mock import MagicMock
 import mitmproxy
 import base64
@@ -106,7 +106,10 @@ class TestHttpProxy(unittest.TestCase):
         rabbitRequest = json.loads(client.call.call_args.args[0])
 
         self.assertEqual(rabbitRequest['host'], flow.request.host)
-        
+
+    def test_can_only_call_once(self):
+        self.assertTrue(False)
+
 if __name__ == '__main__':
     unittest.main()
 
