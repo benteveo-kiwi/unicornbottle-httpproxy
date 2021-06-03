@@ -1,11 +1,15 @@
 #!/usr/bin/env python
+from h11._receivebuffer import ReceiveBuffer
 from http_proxy import rabbitmq
+from io import BytesIO
+from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
+from mitmproxy.net.http.http1.read import read_response_head
 from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
-import mitmproxy
 import base64
 import json
+import mitmproxy
 import pika
 import sys
 import time
@@ -146,6 +150,11 @@ class HTTPProxyAddon(object):
         
         return raw_request
 
+    def parse_response(self, request : mitmproxy.net.http.Request, response : bytes) -> mitmproxy.net.http.Response:
+        response_file = BytesIO(response)
+        response = http1.read_response(response_file, request)
+        return response
+
     def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
         """
         Internal method to facilitate dependency injection for testing.
@@ -160,10 +169,6 @@ class HTTPProxyAddon(object):
         raw_request = self.get_raw_request(flow)
 
         req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
-        response = http_proxy_client.call(req.toJSON().encode())
+        response_bytes = http_proxy_client.call(req.toJSON().encode())
 
-        try:
-            print(" [.] Got %r" % response)
-        except TimeoutException:
-            print(" [-] Timeout :(")
-
+        flow.response = self.parse_response(request, response_bytes)

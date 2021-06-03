@@ -1,4 +1,5 @@
-from http_proxy.rpc_client import HTTPProxyClient, TimeoutException, Request, HTTPProxyAddon
+from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
+from http_proxy.rpc_client import TimeoutException, AlreadyCalledException
 from unittest.mock import MagicMock
 import mitmproxy
 import base64
@@ -6,6 +7,16 @@ import json
 import pika
 import unittest
 import uuid
+
+HTTP_RESP = b"""HTTP/1.1 200 OK
+Date: Mon, 27 Jul 2009 12:28:53 GMT
+Server: Apache/2.2.14 (Win32)
+Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
+Content-Length: 2
+Content-Type: text/html
+Connection: Closed
+
+OK"""
 
 class TestHttpProxy(unittest.TestCase):
 
@@ -75,6 +86,22 @@ class TestHttpProxy(unittest.TestCase):
 
         with self.assertRaises(TimeoutException):
             ret = hpc.call("param")
+
+
+    def test_call_can_only_call_once(self):
+        conn = self._mockConnection()
+        hpc = HTTPProxyClient(conn)
+
+        def _side_effect(*args, **kwargs):
+            hpc.response = 1337
+
+        hpc.connection.process_data_events.side_effect = _side_effect
+
+        param = "param"
+
+        ret = hpc.call(param)
+        with self.assertRaises(AlreadyCalledException):
+            ret = hpc.call(param)
     
     def test_request_encoder(self):
         host = "www.example.org"
@@ -104,11 +131,15 @@ class TestHttpProxy(unittest.TestCase):
 
         # Ensure can parse JSON
         rabbitRequest = json.loads(client.call.call_args.args[0])
-
         self.assertEqual(rabbitRequest['host'], flow.request.host)
 
-    def test_can_only_call_once(self):
-        self.assertTrue(False)
+    def test_parse_response(self):
+        addon = HTTPProxyAddon()
+        flow = self._mockFlow()
+
+        resp = addon.parse_response(flow.request, HTTP_RESP)
+
+        self.assertTrue(False) # todo add assertions.
 
 if __name__ == '__main__':
     unittest.main()
