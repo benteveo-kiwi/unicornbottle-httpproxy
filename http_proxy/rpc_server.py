@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-import pika
+from typing import Dict, Optional, Any
 import json
+import pika
 
 credentials = pika.PlainCredentials('httpproxy', 'SHJfakkjawkjhfkawjaw')
 connection = pika.BlockingConnection(
@@ -10,17 +11,7 @@ channel = connection.channel()
 
 channel.queue_declare(queue='rpc_queue')
 
-
-def fib(n):
-    if n == 0:
-        return 0
-    elif n == 1:
-        return 1
-    else:
-        return fib(n - 1) + fib(n - 2)
-
-
-def on_request(ch, method, props, body):
+def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes):
 
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -33,7 +24,15 @@ def on_request(ch, method, props, body):
     my_props = pika.BasicProperties(correlation_id = props.correlation_id)
     ch.basic_publish(exchange='', routing_key=props.reply_to,
                      properties=my_props,
-                     body=str("you got it"))
+                     body=str("""HTTP/1.1 200 OK
+Date: Mon, 27 Jul 2009 12:28:53 GMT
+Server: Apache/2.2.14 (Win32)
+Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
+Content-Length: 3
+Content-Type: text/html
+Connection: Closed
+
+OK"""))
 
 
 channel.basic_qos(prefetch_count=1)

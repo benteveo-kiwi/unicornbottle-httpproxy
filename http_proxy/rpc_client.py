@@ -2,7 +2,8 @@
 from http_proxy import rabbitmq
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.script import concurrent
-from typing import Dict, Any
+from typing import Dict, Optional, Any
+import mitmproxy
 import base64
 import json
 import pika
@@ -51,7 +52,7 @@ class HTTPProxyClient(object):
         self.called_already = False
         self.connection = connection
         self.channel = self.connection.channel()
-        self.response = None
+        self.response : Optional[bytes] = None
 
         # Create a queue for handling the responses.
         result = self.channel.queue_declare(queue='', exclusive=True)
@@ -61,7 +62,7 @@ class HTTPProxyClient(object):
             on_message_callback=self.on_response,
             auto_ack=True)
 
-    def on_response(self, ch : pika.channel.Channel, method : pika.spec.Basic.Return, props : pika.spec.BasicProperties, body : bytes) -> None:
+    def on_response(self, ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
         """
         Gets called when a response is issued as per the RPC pattern.
 
@@ -74,12 +75,13 @@ class HTTPProxyClient(object):
         if self.corr_id == props.correlation_id:
             self.response = body
 
-    def call(self, n):
+    def call(self, message_body : bytes) -> bytes:
         """
         Handles writing to queue, polling until a response is received and timeouts.
 
-        Return:
-            The RPC response.
+        Args:
+            message_body: A JSON serialised `Request` Object.
+            The RPC response, as bytes.
         Raises:
             TimeoutException: PROCESS_TIME_LIMIT exceeded, request timeout.
         """
@@ -99,7 +101,7 @@ class HTTPProxyClient(object):
                 reply_to=self.callback_queue,
                 correlation_id=self.corr_id,
             ),
-            body=str(n))
+            body=message_body)
 
         self.connection.process_data_events(time_limit=PROCESS_TIME_LIMIT)
 
@@ -115,8 +117,8 @@ class HTTPProxyAddon(object):
     Handles integration with mitmproxy.
     """
 
-    @concurrent
-    def request(self, flow):
+    @concurrent # type: ignore
+    def request(self, flow: mitmproxy.http.HTTPFlow ) -> None:
         """
         Main mitmproxy entry point. This function gets called on each request
         received after mitmproxy handles all the underlying HTTP shenanigans.
@@ -129,9 +131,9 @@ class HTTPProxyAddon(object):
         connection = rabbitmq.new_connection()
         http_proxy_client = HTTPProxyClient(connection)
 
-        return self._request(http_proxy_client, flow)
+        self._request(http_proxy_client, flow)
 
-    def get_raw_request(self, flow):
+    def get_raw_request(self, flow : mitmproxy.http.HTTPFlow) -> bytes:
         """
         Obtains the assembled raw bytes required for sending through a socket.
 
@@ -140,11 +142,11 @@ class HTTPProxyAddon(object):
         """
         request = flow.request.copy()
         request.decode(strict=False)
-        raw_request = assemble.assemble_request(request)
+        raw_request : bytes = assemble.assemble_request(request)
         
         return raw_request
 
-    def _request(self, http_proxy_client, flow):
+    def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
         """
         Internal method to facilitate dependency injection for testing.
 
@@ -158,13 +160,10 @@ class HTTPProxyAddon(object):
         raw_request = self.get_raw_request(flow)
 
         req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
-        response = http_proxy_client.call(req.toJSON())
+        response = http_proxy_client.call(req.toJSON().encode())
 
         try:
             print(" [.] Got %r" % response)
         except TimeoutException:
             print(" [-] Timeout :(")
 
-addons = [
-    HTTPProxyAddon()
-]

@@ -13,7 +13,7 @@ pip install -r requirements.txt requirements_test.txt
 # To run:
 
 ```
-mitmdump --no-http2 -s rpc_client.py
+mitmdump --no-http2 -s rpc_addon.py
 ```
 
 I disable HTTP2 because I don't need that kind of functionality and it could be
@@ -37,4 +37,14 @@ You can also run static type checks with:
 
 ```
 mypy http_proxy --exclude 'test.*'
+```
+
+# Type Checking
+
+The code within this repository supports type checking. This should prevent
+dumb errors that can easily be avoided by it. You can install the pre-commit
+hook by running the following command:
+
+```
+cp pre_commit_hook/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 ```
