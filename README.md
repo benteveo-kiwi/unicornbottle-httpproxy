@@ -24,19 +24,13 @@ proxy to support HTTP2 in any case so it shoud work OK.
 # Run unit tests:
 
 ```
-python3 -m unittest test_http_proxy
+python3 -m unittest http_proxy.test_http_proxy
 ```
 
 To run an individual test:
 
 ```
-python3 -m unittest test_http_proxy.TestHttpProxy.test_request_encoder
-```
-
-You can also run static type checks with: 
-
-```
-mypy http_proxy --exclude 'test.*'
+python3 -m unittest http_proxy.test_http_proxy.TestHttpProxy.test_request_method
 ```
 
 # Type Checking
@@ -47,4 +41,10 @@ hook by running the following command:
 
 ```
 cp pre_commit_hook/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+```
+
+You can also run static type checks with: 
+
+```
+mypy http_proxy/ rpc_addon.py --exclude 'test.*' --ignore-missing-imports`
 ```

@@ -11,15 +11,15 @@ channel = connection.channel()
 
 channel.queue_declare(queue='rpc_queue')
 
-def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes):
+def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
 
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
     try:
         request = json.loads(body)
-        print("[+] Got req %s" % body)
+        print("[+] Got req %r" % body)
     except json.decoder.JSONDecodeError:
-        print("[-] Couldn't decode a JSON object and am having a bad time. Body '%s'" % body)
+        print("[-] Couldn't decode a JSON object and am having a bad time. Body '%r'" % body)
 
     my_props = pika.BasicProperties(correlation_id = props.correlation_id)
     ch.basic_publish(exchange='', routing_key=props.reply_to,
