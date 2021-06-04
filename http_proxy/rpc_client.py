@@ -9,17 +9,15 @@ from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
 import base64
 import json
+import logging
 import mitmproxy
 import pika
 import sys
 import time
 import uuid
 
-# notes:
-# https://stackoverflow.com/questions/28626213/mitm-proxy-getting-entire-request-and-response-string
-# https://stackoverflow.com/questions/65553910/how-to-simulate-timeout-in-mitmproxy-addon
-
 PROCESS_TIME_LIMIT = 15
+logger = logging.getLogger("rpc_client")
 
 class Request(object):
     def __init__(self, host:str, port:int, protocol:str, bytes:bytes) -> None:
@@ -109,8 +107,6 @@ class HTTPProxyClient(object):
 
         self.connection.process_data_events(time_limit=PROCESS_TIME_LIMIT)
 
-        self.connection.close()
-
         if not self.response:
             raise TimeoutException
 
@@ -132,10 +128,16 @@ class HTTPProxyAddon(object):
         pydoc3 mitmproxy.http
         pydoc3 mitmproxy.net.http.request
         """
-        connection = rabbitmq.new_connection()
-        http_proxy_client = HTTPProxyClient(connection)
+        try:
+            connection = rabbitmq.new_connection()
+            http_proxy_client = HTTPProxyClient(connection)
 
-        self._request(http_proxy_client, flow)
+            self._request(http_proxy_client, flow)
+        except:
+            logger.exception("Unhandled exception in request thread.", exc_info=True)
+            flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
+        finally:
+            connection.close()
 
     def get_raw_request(self, flow : mitmproxy.http.HTTPFlow) -> bytes:
         """
@@ -151,9 +153,19 @@ class HTTPProxyAddon(object):
         return raw_request
 
     def parse_response(self, request : mitmproxy.net.http.Request, response : bytes) -> mitmproxy.net.http.Response:
+        """
+        Parses response into an object as required by mitmproxy.
+        
+        Args:
+            request: the original request. 
+            response: the response in bytes.
+        Returns:
+            response: the parsed response object with content populated.
+        """
         response_file = BytesIO(response)
-        response = http1.read_response(response_file, request)
-        return response
+        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request)
+
+        return parsed_response
 
     def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
         """
@@ -171,4 +183,4 @@ class HTTPProxyAddon(object):
         req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
         response_bytes = http_proxy_client.call(req.toJSON().encode())
 
-        flow.response = self.parse_response(request, response_bytes)
+        flow.response = self.parse_response(flow.request, response_bytes)

@@ -28,7 +28,7 @@ def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body :
 Date: Mon, 27 Jul 2009 12:28:53 GMT
 Server: Apache/2.2.14 (Win32)
 Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-Content-Length: 3
+Content-Length: 2
 Content-Type: text/html
 Connection: Closed
 

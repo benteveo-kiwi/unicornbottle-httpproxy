@@ -124,8 +124,11 @@ class TestHttpProxy(unittest.TestCase):
         flow = self._mockFlow()
         raw_request = b"raw_request"
 
+        response = MagicMock()
+
         addon = HTTPProxyAddon()
         addon.get_raw_request = MagicMock(return_value=raw_request)
+        addon.parse_response = MagicMock(return_value=response)
 
         addon._request(client, flow)
 
@@ -133,13 +136,18 @@ class TestHttpProxy(unittest.TestCase):
         rabbitRequest = json.loads(client.call.call_args.args[0])
         self.assertEqual(rabbitRequest['host'], flow.request.host)
 
+        # Ensure response is replaced in flow.
+        self.assertEqual(flow.response, response)
+
     def test_parse_response(self):
         addon = HTTPProxyAddon()
         flow = self._mockFlow()
 
         resp = addon.parse_response(flow.request, HTTP_RESP)
 
-        self.assertTrue(False) # todo add assertions.
+        self.assertEqual(resp.content, b"OK")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers["content-length"], "2")
 
 if __name__ == '__main__':
     unittest.main()
