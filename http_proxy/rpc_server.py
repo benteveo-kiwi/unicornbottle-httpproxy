@@ -4,7 +4,7 @@ from http_proxy import rabbitmq, log
 import json
 import pika
 
-logger = log.getLogger("rpc_server")
+logger = log.getLogger("rpc_server", server=True)
 
 def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
 

@@ -1,16 +1,16 @@
 import logging
 import os
 
-WORKER_LOG_FOLDER = '/var/log/ub-httpproxy-worker'
+PROXY_LOG_FOLDER = '/var/log/ub-httpproxy-proxy'
 SERVER_LOG_FOLDER = '/var/log/ub-httpproxy-server'
 
-def getLogger(name : str, worker : bool) -> logging.Logger:
+def getLogger(name : str, server : bool) -> logging.Logger:
     pid = os.getpid()
 
-    if worker:
-        log_folder = WORKER_LOG_FOLDER
-    else:
+    if server:
         log_folder = SERVER_LOG_FOLDER
+    else:
+        log_folder = PROXY_LOG_FOLDER
 
     file = "ub-httproxy-%s.log" % pid
     filename = "%s/%s" % (log_folder, file)

@@ -16,7 +16,7 @@ import time
 import uuid
 
 PROCESS_TIME_LIMIT = 15
-logger = log.getLogger("rpc_client")
+logger = log.getLogger("rpc_client", server=False)
 
 class Request(object):
     def __init__(self, host:str, port:int, protocol:str, bytes:bytes) -> None:
