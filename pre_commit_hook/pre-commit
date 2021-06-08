@@ -1,1 +1,1 @@
-mypy http_proxy/ rpc_addon.py --exclude 'test.*' # whitespace is significant.
+mypy -p http_proxy -p rpc_addon
