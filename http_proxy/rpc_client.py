@@ -117,7 +117,7 @@ class HTTPProxyAddon(object):
     """
 
     @concurrent # type: ignore
-    def request(self, flow: mitmproxy.http.HTTPFlow ) -> None:
+    def request(self, flow: mitmproxy.http.HTTPFlow) -> None:
         """
         Main mitmproxy entry point. This function gets called on each request
         received after mitmproxy handles all the underlying HTTP shenanigans.

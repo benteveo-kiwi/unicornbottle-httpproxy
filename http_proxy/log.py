@@ -12,11 +12,16 @@ def getLogger(name : str, server : bool) -> logging.Logger:
     else:
         log_folder = PROXY_LOG_FOLDER
 
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+
     file = "ub-httproxy-%s.log" % pid
     filename = "%s/%s" % (log_folder, file)
     
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s",
         handlers=[logging.FileHandler(filename),logging.StreamHandler()])
+
+    logging.getLogger("pika").setLevel(logging.WARNING)
 
     logger = logging.getLogger(name)
 

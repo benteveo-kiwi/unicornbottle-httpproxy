@@ -10,11 +10,10 @@ def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body :
 
     try:
         request = json.loads(body)
-        print("[+] Got req %r" % body)
+        logger.info("Successfully received message from queue. Now processing.")
     except json.decoder.JSONDecodeError:
-        print("[-] Couldn't decode a JSON object and am having a bad time. Body '%r'" % body)
-
-    print(request)
+        logger.exception("Couldn't decode a JSON object and am having a bad time. Body '%r'." % body)
+        raise
 
     my_props = pika.BasicProperties(correlation_id = props.correlation_id)
     ch.basic_publish(exchange='', routing_key=props.reply_to,
@@ -29,7 +28,7 @@ Connection: Closed
 
 OK""")
 
-if __name__ == '__main__':
+def listen():
     try:
         connection = rabbitmq.new_connection()
         channel = connection.channel()
