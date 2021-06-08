@@ -1,6 +1,6 @@
-#!/usr/bin/env python
-from h11._receivebuffer import ReceiveBuffer
-from http_proxy import rabbitmq
+#!/usr/bin/env python3
+from h11._receivebuffer import ReceiveBuffer # type: ignore
+from http_proxy import rabbitmq, log
 from io import BytesIO
 from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
@@ -9,7 +9,6 @@ from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
 import base64
 import json
-import logging
 import mitmproxy
 import pika
 import sys
@@ -17,7 +16,7 @@ import time
 import uuid
 
 PROCESS_TIME_LIMIT = 15
-logger = logging.getLogger("rpc_client")
+logger = log.getLogger("rpc_client")
 
 class Request(object):
     def __init__(self, host:str, port:int, protocol:str, bytes:bytes) -> None:
@@ -148,7 +147,7 @@ class HTTPProxyAddon(object):
         """
         request = flow.request.copy()
         request.decode(strict=False)
-        raw_request : bytes = assemble.assemble_request(request)
+        raw_request : bytes = assemble.assemble_request(request) # type: ignore
         
         return raw_request
 
@@ -163,7 +162,7 @@ class HTTPProxyAddon(object):
             response: the parsed response object with content populated.
         """
         response_file = BytesIO(response)
-        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request)
+        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request) # type: ignore
 
         return parsed_response
 

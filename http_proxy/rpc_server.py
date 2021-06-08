@@ -1,25 +1,20 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from typing import Dict, Optional, Any
+from http_proxy import rabbitmq, log
 import json
 import pika
 
-credentials = pika.PlainCredentials('httpproxy', 'SHJfakkjawkjhfkawjaw')
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters('localhost', 5672, '/', credentials=credentials))
-
-channel = connection.channel()
-
-channel.queue_declare(queue='rpc_queue')
+logger = log.getLogger("rpc_server")
 
 def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
-
-    ch.basic_ack(delivery_tag=method.delivery_tag)
 
     try:
         request = json.loads(body)
         print("[+] Got req %r" % body)
     except json.decoder.JSONDecodeError:
         print("[-] Couldn't decode a JSON object and am having a bad time. Body '%r'" % body)
+
+    print(request)
 
     my_props = pika.BasicProperties(correlation_id = props.correlation_id)
     ch.basic_publish(exchange='', routing_key=props.reply_to,
@@ -34,9 +29,19 @@ Connection: Closed
 
 OK""")
 
+if __name__ == '__main__':
+    try:
+        connection = rabbitmq.new_connection()
+        channel = connection.channel()
+        channel.queue_declare(queue='rpc_queue')
 
-channel.basic_qos(prefetch_count=1)
-channel.basic_consume(queue='rpc_queue', on_message_callback=on_request)
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue='rpc_queue', on_message_callback=on_request, auto_ack=True)
 
-print(" [x] Awaiting RPC requests")
-channel.start_consuming()
+        logger.info("[+] HTTP Server consumer started successfully. Listening for messages.")
+        channel.start_consuming()
+    except:
+        logger.exception("Unhandled exception in server init thread.", exc_info=True)
+    finally:
+        connection.close()
+
