@@ -24,13 +24,13 @@ proxy to support HTTP2 in any case so it shoud work OK.
 # Run unit tests:
 
 ```
-python3 -m unittest http_proxy.test_http_proxy
+python3 -m unittest tests/test*
 ```
 
 To run an individual test:
 
 ```
-python3 -m unittest http_proxy.test_http_proxy.TestHttpProxy.test_request_method
+python3 -m unittest tests.test_rpc_server.TestRPCServer.test_whatever
 ```
 
 # Type Checking
