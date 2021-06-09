@@ -113,7 +113,8 @@ class TestRPCClient(TestBase):
         proto = "http"
         bytes = b"lalalala"
 
-        req = Request(host, port, proto, bytes)
+        encoded_bytes = base64.b64encode(bytes).decode('ascii')
+        req = Request(host, port, proto, encoded_bytes)
 
         j = req.toJSON()
         decoded = json.loads(j)
@@ -121,7 +122,7 @@ class TestRPCClient(TestBase):
         self.assertEqual(decoded['host'], host)
         self.assertEqual(decoded['port'], port)
         self.assertEqual(decoded['protocol'], proto)
-        self.assertEqual(base64.b64decode(decoded['bytes']), bytes)
+        self.assertEqual(base64.b64decode(decoded['encoded_bytes']), bytes)
 
     def test_request_method(self):
         client = self._mockHTTPClient()

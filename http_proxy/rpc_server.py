@@ -1,19 +1,61 @@
 from http_proxy import rabbitmq, log
 from http_proxy.models import Request
 from typing import Dict, Optional, Any
+import base64
 import json
 import pika
+import socket
 
 logger = log.getLogger("rpc_server", server=True)
+TIMEOUT = 10
 
 class RPCServer(object):
     """
-    Base class for server instances.
+    Base class for server instances. Please note that this class and this
+    module are not multithreaded. Running multiple instances of this script as
+    required is preferred as this avoids concurrency issues due to Python's GIL.
     """
 
     def send_request(self, request : Request) -> bytes:
+        """
+        Main connection handler. Opens a socket, optionally wrapping with SSL
+        if required and sends to destination.
 
-        return b""
+        Args:
+            request: the request as sent by the proxy.
+        """
+        address = (request.host, request.port)
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        sock.settimeout(TIMEOUT)
+        sock.connect(address)
+
+        sock.send(base64.b64decode(request.encoded_bytes))
+
+        raw_response = b""
+
+        while True:
+            try:
+                msg = sock.recv(4096)
+            except socket.timeout:
+                logger.exception("Read timeout")
+                raise
+            except socket.error:
+                logger.exception("Error reading from socket")
+                raise
+            else:
+                print(msg)
+                print("------------------------------------------------------------")
+                print("------------------------------------------------------------")
+                print("------------------------------------------------------------")
+                print("------------------------------------------------------------")
+                if len(msg) == 0:
+                    break
+                else:
+                    raw_response += msg
+
+        return raw_response
 
     def on_request(self, ch : pika.channel.Channel, method : Any, props :
             pika.spec.BasicProperties, body : bytes) -> None:

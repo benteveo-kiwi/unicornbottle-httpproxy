@@ -1,9 +1,10 @@
+from typing import Dict, Optional, Any
 import base64
 import http_proxy
 import json
 
 class Request():
-    def __init__(self, host:str, port:int, protocol:str, bytes:bytes) -> None:
+    def __init__(self, host:str, port:int, protocol:str, encoded_bytes:str) -> None:
         """
         Internal representation of request objects for the proxy and server instances.
 
@@ -11,12 +12,12 @@ class Request():
             host: hostname to connect to.
             port: port to connect to.
             protocol: either "http" or "https"
-            bytes: the raw bytes of the request.
+            encoded_bytes: the raw bytes of the request as an ascii string.
         """
         self.host = host
         self.port = port
         self.protocol = protocol
-        self.bytes = base64.b64encode(bytes).decode('ascii')
+        self.encoded_bytes = encoded_bytes
 
     def toJSON(self) -> str:
         """
@@ -27,7 +28,7 @@ class Request():
         return json.dumps(data)
 
     @classmethod
-    def fromJSON(cls, json_str : str):
+    def fromJSON(cls, json_str : bytes):
         """
         Creates a Request object from a JSON string.
 
@@ -35,5 +36,5 @@ class Request():
             json.decoder.JSONDecodeError: if you give it bad JSON.
         """
         j = json.loads(json_str)
-        return cls(j['host'], j['port'], j['protocol'], base64.b64decode(j['bytes']))
+        return cls(j['host'], j['port'], j['protocol'], j['encoded_bytes'])
 

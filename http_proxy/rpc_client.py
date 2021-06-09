@@ -7,6 +7,7 @@ from mitmproxy.net.http.http1 import assemble
 from mitmproxy.net.http.http1.read import read_response_head
 from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
+import base64
 import mitmproxy
 import pika
 import sys
@@ -167,7 +168,10 @@ class HTTPProxyAddon(object):
 
         raw_request = self.get_raw_request(flow)
 
-        req = Request(mitmproxy_req.host, mitmproxy_req.port, mitmproxy_req.scheme, raw_request)
+        req = Request(mitmproxy_req.host, mitmproxy_req.port,
+                mitmproxy_req.scheme,
+                base64.b64encode(raw_request).decode('ascii'))
+
         response_bytes = http_proxy_client.call(req.toJSON().encode())
 
         flow.response = self.parse_response(flow.request, response_bytes)
