@@ -1,6 +1,7 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException, AlreadyCalledException
 from unittest.mock import MagicMock
+from tests.test_base import TestBase
 import mitmproxy
 import base64
 import json
@@ -18,7 +19,10 @@ Connection: Closed
 
 OK"""
 
-class TestHttpProxy(unittest.TestCase):
+class TestRPCClient(TestBase):
+    """
+    This file contains tests related to rpc_client.py mostly.
+    """
 
     def _mockConnection(self):
         return MagicMock(spec=pika.BlockingConnection)

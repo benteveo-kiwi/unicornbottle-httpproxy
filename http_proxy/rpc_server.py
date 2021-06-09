@@ -15,18 +15,11 @@ def on_request(ch : Any, method : Any, props : pika.spec.BasicProperties, body :
         logger.exception("Couldn't decode a JSON object and am having a bad time. Body '%r'." % body)
         raise
 
+    response_body = b""
+
     my_props = pika.BasicProperties(correlation_id = props.correlation_id)
     ch.basic_publish(exchange='', routing_key=props.reply_to,
-                     properties=my_props,
-                     body="""HTTP/1.1 200 OK
-Date: Mon, 27 Jul 2009 12:28:53 GMT
-Server: Apache/2.2.14 (Win32)
-Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-Content-Length: 2
-Content-Type: text/html
-Connection: Closed
-
-OK""")
+                     properties=my_props, body=response_body)
 
 def listen():
     try:
