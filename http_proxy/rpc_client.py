@@ -168,12 +168,9 @@ class HTTPProxyAddon(object):
         mitmproxy_req = flow.request
 
         raw_request = self.get_raw_request(flow)
-        print(flow.request.get_state())
-        sys.exit()
 
-        req = Request(mitmproxy_req.host, mitmproxy_req.port,
-                mitmproxy_req.scheme,
-                base64.b64encode(raw_request).decode('ascii'))
+        print(flow.request.get_state())
+        req = Request(flow.request.get_state())
 
         response_bytes = http_proxy_client.call(req.toJSON().encode())
 

@@ -16,46 +16,46 @@ class RPCServer(object):
     required is preferred as this avoids concurrency issues due to Python's GIL.
     """
 
-    def send_request(self, request : Request) -> bytes:
-        """
-        Main connection handler. Opens a socket, optionally wrapping with SSL
-        if required and sends to destination.
+    # def send_request(self, request : Request) -> bytes:
+        # """
+        # Main connection handler. Opens a socket, optionally wrapping with SSL
+        # if required and sends to destination.
 
-        Args:
-            request: the request as sent by the proxy.
-        """
-        address = (request.host, request.port)
+        # Args:
+            # request: the request as sent by the proxy.
+        # """
+        # address = (request.host, request.port)
 
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        sock.settimeout(TIMEOUT)
-        sock.connect(address)
+        # sock.settimeout(TIMEOUT)
+        # sock.connect(address)
 
-        sock.send(base64.b64decode(request.encoded_bytes))
+        # sock.send(base64.b64decode(request.encoded_bytes))
 
-        raw_response = b""
+        # raw_response = b""
 
-        while True:
-            try:
-                msg = sock.recv(4096)
-            except socket.timeout:
-                logger.exception("Read timeout")
-                raise
-            except socket.error:
-                logger.exception("Error reading from socket")
-                raise
-            else:
-                print(msg)
-                print("------------------------------------------------------------")
-                print("------------------------------------------------------------")
-                print("------------------------------------------------------------")
-                print("------------------------------------------------------------")
-                if len(msg) == 0:
-                    break
-                else:
-                    raw_response += msg
+        # while True:
+            # try:
+                # msg = sock.recv(4096)
+            # except socket.timeout:
+                # logger.exception("Read timeout")
+                # raise
+            # except socket.error:
+                # logger.exception("Error reading from socket")
+                # raise
+            # else:
+                # print(msg)
+                # print("------------------------------------------------------------")
+                # print("------------------------------------------------------------")
+                # print("------------------------------------------------------------")
+                # print("------------------------------------------------------------")
+                # if len(msg) == 0:
+                    # break
+                # else:
+                    # raw_response += msg
 
-        return raw_response
+        # return raw_response
 
     def on_request(self, ch : pika.channel.Channel, method : Any, props :
             pika.spec.BasicProperties, body : bytes) -> None:
@@ -68,14 +68,15 @@ class RPCServer(object):
             logger.error("Received message without routing key. Ignoring. Body '%r'." % body)
             return
 
-        try:
-            request = Request.fromJSON(body)
-            logger.info("Successfully received message from queue. Sending to %s." % request.host)
-        except json.decoder.JSONDecodeError:
-            logger.exception("Couldn't decode a JSON object and am having a bad time. Body '%r'." % body)
-            raise
+        # try:
+            # request = Request.fromJSON(body)
+            # logger.info("Successfully received message from queue. Sending to %s." % request.host)
+        # except json.decoder.JSONDecodeError:
+            # logger.exception("Couldn't decode a JSON object and am having a bad time. Body '%r'." % body)
+            # raise
 
-        response_body = self.send_request(request)
+        # response_body = self.send_request(request)
+        response_body = b""
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
         ch.basic_publish(exchange='', routing_key=props.reply_to,

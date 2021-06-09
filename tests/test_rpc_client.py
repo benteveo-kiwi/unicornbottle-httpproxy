@@ -19,6 +19,28 @@ Connection: Closed
 
 OK"""
 
+EXAMPLE_REQ = {
+    "http_version": b"HTTP/1.1",
+    "headers": (
+        (b"User-Agent", b"Wget/1.21"),
+        (b"Accept", b"*/*"),
+        (b"Accept-Encoding", b"identity"),
+        (b"Host", b"google.com"),
+        (b"Connection", b"Keep-Alive"),
+        (b"Proxy-Connection", b"Keep-Alive"),
+    ),
+    "content": b"",
+    "trailers": None,
+    "timestamp_start": 1623276395.5825248,
+    "timestamp_end": 1623276395.5842779,
+    "host": "google.com",
+    "port": 80,
+    "method": b"GET",
+    "scheme": b"http",
+    "authority": b"",
+    "path": b"/",
+}
+
 class TestRPCClient(TestBase):
     """
     This file contains tests related to rpc_client.py mostly.
@@ -108,21 +130,21 @@ class TestRPCClient(TestBase):
             ret = hpc.call(param)
     
     def test_request_encoder(self):
-        host = "www.example.org"
-        port = 80
-        proto = "http"
-        bytes = b"lalalala"
+        req_state = EXAMPLE_REQ
 
-        encoded_bytes = base64.b64encode(bytes).decode('ascii')
-        req = Request(host, port, proto, encoded_bytes)
+        req = Request(req_state)
 
         j = req.toJSON()
-        decoded = json.loads(j)
 
-        self.assertEqual(decoded['host'], host)
-        self.assertEqual(decoded['port'], port)
-        self.assertEqual(decoded['protocol'], proto)
-        self.assertEqual(base64.b64decode(decoded['encoded_bytes']), bytes)
+        req_parsed = Request.fromJSON(j)
+
+        self.assertEqual(req_state['host'], req_parsed.request_state['host'])
+        self.assertEqual(req_state['port'], req_parsed.request_state['port'])
+        self.assertEqual(req_state['method'], req_parsed.request_state['method'])
+        self.assertEqual(req_state['scheme'], req_parsed.request_state['scheme'])
+        self.assertEqual(req_state['path'], req_parsed.request_state['path'])
+
+        self.assertEqual(len(req_state['headers']), len(req_parsed.request_state['headers']))
 
     def test_request_method(self):
         client = self._mockHTTPClient()
