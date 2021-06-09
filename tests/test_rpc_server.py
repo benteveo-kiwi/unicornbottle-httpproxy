@@ -56,6 +56,7 @@ class TestRPCServer(TestBase):
 
     @patch("socket.socket", autospec=True)
     def test_send_request(self, socket):
+        self.assertTrue(False)
         server = self._getServer()
         req = self._req()
 

@@ -14,9 +14,10 @@ import sys
 import time
 import uuid
 
+# https://stackoverflow.com/questions/39689678/python-serialize-httpflow-object-mitm
+
 PROCESS_TIME_LIMIT = 15
 logger = log.getLogger("rpc_client", server=False)
-
 
 class TimeoutException(Exception):
     pass
@@ -167,6 +168,8 @@ class HTTPProxyAddon(object):
         mitmproxy_req = flow.request
 
         raw_request = self.get_raw_request(flow)
+        print(flow.request.get_state())
+        sys.exit()
 
         req = Request(mitmproxy_req.host, mitmproxy_req.port,
                 mitmproxy_req.scheme,
