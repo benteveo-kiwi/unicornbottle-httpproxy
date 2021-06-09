@@ -1,14 +1,12 @@
-#!/usr/bin/env python3
 from h11._receivebuffer import ReceiveBuffer # type: ignore
 from http_proxy import rabbitmq, log
+from http_proxy.models import Request
 from io import BytesIO
 from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.net.http.http1.read import read_response_head
 from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
-import base64
-import json
 import mitmproxy
 import pika
 import sys
@@ -18,16 +16,6 @@ import uuid
 PROCESS_TIME_LIMIT = 15
 logger = log.getLogger("rpc_client", server=False)
 
-class Request(object):
-    def __init__(self, host:str, port:int, protocol:str, bytes:bytes) -> None:
-        self.host = host
-        self.port = port
-        self.protocol = protocol
-        self.bytes = base64.b64encode(bytes).decode('ascii')
-
-    def toJSON(self) -> str:
-        data = self.__dict__
-        return json.dumps(data)
 
 class TimeoutException(Exception):
     pass
@@ -106,7 +94,7 @@ class HTTPProxyClient(object):
 
         self.connection.process_data_events(time_limit=PROCESS_TIME_LIMIT)
 
-        if not self.response:
+        if self.response is None:
             raise TimeoutException
 
         return self.response
