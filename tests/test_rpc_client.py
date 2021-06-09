@@ -25,7 +25,7 @@ EXAMPLE_REQ = {
         (b"User-Agent", b"Wget/1.21"),
         (b"Accept", b"*/*"),
         (b"Accept-Encoding", b"identity"),
-        (b"Host", b"google.com"),
+        (b"Host", b"www.testing.local"),
         (b"Connection", b"Keep-Alive"),
         (b"Proxy-Connection", b"Keep-Alive"),
     ),
@@ -33,7 +33,7 @@ EXAMPLE_REQ = {
     "trailers": None,
     "timestamp_start": 1623276395.5825248,
     "timestamp_end": 1623276395.5842779,
-    "host": "google.com",
+    "host": "www.testing.local",
     "port": 80,
     "method": b"GET",
     "scheme": b"http",
@@ -148,23 +148,18 @@ class TestRPCClient(TestBase):
 
     def test_request_method(self):
         client = self._mockHTTPClient()
+
         flow = self._mockFlow()
-        raw_request = b"raw_request"
+        flow.request.get_state.return_value = EXAMPLE_REQ
 
         response = MagicMock()
 
         addon = HTTPProxyAddon()
-        addon.get_raw_request = MagicMock(return_value=raw_request)
-        addon.parse_response = MagicMock(return_value=response)
-
         addon._request(client, flow)
 
         # Ensure can parse JSON
         rabbitRequest = json.loads(client.call.call_args.args[0])
         self.assertEqual(rabbitRequest['host'], flow.request.host)
-
-        # Ensure response is replaced in flow.
-        self.assertEqual(flow.response, response)
 
     def test_parse_response(self):
         addon = HTTPProxyAddon()

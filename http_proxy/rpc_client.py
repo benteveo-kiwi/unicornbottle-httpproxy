@@ -128,19 +128,6 @@ class HTTPProxyAddon(object):
         finally:
             connection.close()
 
-    def get_raw_request(self, flow : mitmproxy.http.HTTPFlow) -> bytes:
-        """
-        Obtains the assembled raw bytes required for sending through a socket.
-
-        Args:
-            flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
-        """
-        request = flow.request.copy()
-        request.decode(strict=False)
-        raw_request : bytes = assemble.assemble_request(request) # type: ignore
-        
-        return raw_request
-
     def parse_response(self, request : mitmproxy.net.http.Request, response : bytes) -> mitmproxy.net.http.Response:
         """
         Parses response into an object as required by mitmproxy.
@@ -165,13 +152,6 @@ class HTTPProxyAddon(object):
             flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
         """
 
-        mitmproxy_req = flow.request
-
-        raw_request = self.get_raw_request(flow)
-
-        print(flow.request.get_state())
         req = Request(flow.request.get_state())
-
         response_bytes = http_proxy_client.call(req.toJSON().encode())
 
-        flow.response = self.parse_response(flow.request, response_bytes)
