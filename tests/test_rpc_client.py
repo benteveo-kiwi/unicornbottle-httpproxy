@@ -9,37 +9,10 @@ import pika
 import unittest
 import uuid
 
-HTTP_RESP = b"""HTTP/1.1 200 OK
-Date: Mon, 27 Jul 2009 12:28:53 GMT
-Server: Apache/2.2.14 (Win32)
-Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-Content-Length: 2
-Content-Type: text/html
-Connection: Closed
-
-OK"""
-
-
 class TestRPCClient(TestBase):
     """
     This file contains tests related to rpc_client.py mostly.
     """
-
-    def _mockConnection(self):
-        return MagicMock(spec=pika.BlockingConnection)
-
-    def _mockHTTPClient(self):
-        return MagicMock(spec=HTTPProxyClient)
-
-    def _mockFlow(self):
-        flow = MagicMock(spec=mitmproxy.http.HTTPFlow)
-        flow.request = MagicMock()
-
-        flow.request.host = "www.testing.local"
-        flow.request.port = 80
-        flow.request.scheme = "http"
-        
-        return flow
 
     def test_constructor(self):
         conn = self._mockConnection()
@@ -140,15 +113,6 @@ class TestRPCClient(TestBase):
         rabbitRequest = json.loads(client.call.call_args.args[0])
         self.assertEqual(rabbitRequest['host'], flow.request.host)
 
-    def test_parse_response(self):
-        addon = HTTPProxyAddon()
-        flow = self._mockFlow()
-
-        resp = addon.parse_response(flow.request, HTTP_RESP)
-
-        self.assertEqual(resp.content, b"OK")
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.headers["content-length"], "2")
 
 if __name__ == '__main__':
     unittest.main()

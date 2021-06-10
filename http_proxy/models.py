@@ -53,19 +53,19 @@ class RequestDecoder(json.JSONDecoder):
 
         return data
 
-class Request():
-    def __init__(self, request_state : dict) -> None:
+class MessageSerializer():
+    def __init__(self, state : dict) -> None:
         """
-        Internal representation of request objects for the proxy and server
-        instances. Can be used to generate mitmproxy's internal
+        Internal representation of request/response objects for the proxy and
+        server instances. Can be used to transmit mitmproxy's internal
         representations.
 
         Args:
-            request_state: request state as exported by the
+            state: request state as exported by the
                 mitmproxy.Request.get_state() method.
         """
 
-        self.request_state = request_state
+        self.state = state
 
     def toJSON(self) -> str:
         """
@@ -73,7 +73,7 @@ class Request():
         base64.
         """
 
-        data = self.request_state
+        data = self.state
         return json.dumps(data, cls=RequestEncoder)
 
     @classmethod
@@ -85,12 +85,22 @@ class Request():
             json.decoder.JSONDecodeError: if you give it bad JSON.
         """
         j = json.loads(json_str)
-        request_state = json.loads(json_str, cls=RequestDecoder)
-        return cls(request_state)
+        state = json.loads(json_str, cls=RequestDecoder)
+        return cls(state)
 
+
+class Request(MessageSerializer):
     def toMITM(self) -> mitmproxy.net.http.Request:
         """
         Grabs data stored in the request state and converts it into a mitmproxy.http.Request object.
         """
-        return mitmproxy.net.http.Request(**self.request_state)
+        return mitmproxy.net.http.Request(**self.state)
+
+class Response(MessageSerializer):
+    def toMITM(self) -> mitmproxy.net.http.Response:
+        """
+        Grabs data stored in the request state and converts it into a mitmproxy.http.Response object.
+        """
+        return mitmproxy.net.http.Response(**self.state)
+
 

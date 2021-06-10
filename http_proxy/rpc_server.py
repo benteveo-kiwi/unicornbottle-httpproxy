@@ -1,5 +1,5 @@
 from http_proxy import rabbitmq, log
-from http_proxy.models import Request
+from http_proxy.models import Request, Response
 from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.net.http.http1.read import read_response_head
@@ -54,14 +54,12 @@ class RPCServer(object):
         if required and sends to destination.
 
         Args:
-            request: the request as sent by the proxy.
+            request: the request as sent by the proxy. It will be assembled and
+                sent.
         """
-        address = (request.host, request.port)
-
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
         sock.settimeout(TIMEOUT)
-        sock.connect(address)
+        sock.connect((request.host, request.port))
 
         request_bytes = self.get_raw_request(request)
         sock.send(request_bytes)
@@ -88,8 +86,8 @@ class RPCServer(object):
             logger.exception("Couldn't decode a JSON object and am having a bad time. Body '%r'." % body)
             raise
 
-        print(self.send_request(request))
-        response_body = b""
+        response = self.send_request(request)
+        response_body = Response(response.get_state()).toJSON()
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
         ch.basic_publish(exchange='', routing_key=props.reply_to,
