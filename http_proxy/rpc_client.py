@@ -1,5 +1,5 @@
 from http_proxy import rabbitmq, log
-from http_proxy.models import Request
+from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
@@ -102,6 +102,9 @@ class HTTPProxyAddon(object):
     Handles integration with mitmproxy.
     """
 
+    def __init__(self):
+        logger.info("mitmproxy addon started.")
+
     @concurrent # type: ignore
     def request(self, flow: mitmproxy.http.HTTPFlow) -> None:
         """
@@ -134,5 +137,8 @@ class HTTPProxyAddon(object):
         """
 
         req = Request(flow.request.get_state())
-        response_bytes = http_proxy_client.call(req.toJSON().encode())
+        response_json = http_proxy_client.call(req.toJSON().encode('utf-8'))
+
+        flow.response = Response.fromJSON(response_json).toMITM()
+        logger.info("Successfully handled request to %s. Response %s" % (flow.request.pretty_url, flow.response))
 

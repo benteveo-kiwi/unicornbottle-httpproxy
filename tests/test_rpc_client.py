@@ -90,13 +90,13 @@ class TestRPCClient(TestBase):
 
         req_parsed = Request.fromJSON(j)
 
-        self.assertEqual(req_state['host'], req_parsed.request_state['host'])
-        self.assertEqual(req_state['port'], req_parsed.request_state['port'])
-        self.assertEqual(req_state['method'], req_parsed.request_state['method'])
-        self.assertEqual(req_state['scheme'], req_parsed.request_state['scheme'])
-        self.assertEqual(req_state['path'], req_parsed.request_state['path'])
+        self.assertEqual(req_state['host'], req_parsed.state['host'])
+        self.assertEqual(req_state['port'], req_parsed.state['port'])
+        self.assertEqual(req_state['method'], req_parsed.state['method'])
+        self.assertEqual(req_state['scheme'], req_parsed.state['scheme'])
+        self.assertEqual(req_state['path'], req_parsed.state['path'])
 
-        self.assertEqual(len(req_state['headers']), len(req_parsed.request_state['headers']))
+        self.assertEqual(len(req_state['headers']), len(req_parsed.state['headers']))
 
     def test_request_method(self):
         client = self._mockHTTPClient()
@@ -113,6 +113,8 @@ class TestRPCClient(TestBase):
         rabbitRequest = json.loads(client.call.call_args.args[0])
         self.assertEqual(rabbitRequest['host'], flow.request.host)
 
+    def test_request_replaces_response(self):
+        self.assertTrue(False)
 
 if __name__ == '__main__':
     unittest.main()

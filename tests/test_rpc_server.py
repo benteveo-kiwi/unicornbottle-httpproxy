@@ -97,5 +97,7 @@ class TestRPCServer(TestBase):
         server.send_request(req)
 
         self.assertEquals(socket.call_count, 1)
-        
+
+    def test_send_request_ssl(self):
+        self.assertTrue(False)
 

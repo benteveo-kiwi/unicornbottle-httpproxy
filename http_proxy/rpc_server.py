@@ -91,7 +91,7 @@ class RPCServer(object):
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
         ch.basic_publish(exchange='', routing_key=props.reply_to,
-                         properties=my_props, body=response_body)
+                         properties=my_props, body=response_body.encode('utf-8'))
 
 def listen():
     started_once = False
