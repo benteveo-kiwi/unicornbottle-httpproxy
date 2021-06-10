@@ -2,6 +2,7 @@ from typing import Dict, Optional, Any, Union
 import base64
 import http_proxy
 import json
+import mitmproxy.net.http
 
 class RequestEncoder(json.JSONEncoder):
     """
@@ -55,7 +56,9 @@ class RequestDecoder(json.JSONDecoder):
 class Request():
     def __init__(self, request_state : dict) -> None:
         """
-        Internal representation of request objects for the proxy and server instances.
+        Internal representation of request objects for the proxy and server
+        instances. Can be used to generate mitmproxy's internal
+        representations.
 
         Args:
             request_state: request state as exported by the
@@ -84,4 +87,10 @@ class Request():
         j = json.loads(json_str)
         request_state = json.loads(json_str, cls=RequestDecoder)
         return cls(request_state)
+
+    def toMITM(self) -> mitmproxy.net.http.Request:
+        """
+        Grabs data stored in the request state and converts it into a mitmproxy.http.Request object.
+        """
+        return mitmproxy.net.http.Request(**self.request_state)
 

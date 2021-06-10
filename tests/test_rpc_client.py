@@ -19,27 +19,6 @@ Connection: Closed
 
 OK"""
 
-EXAMPLE_REQ = {
-    "http_version": b"HTTP/1.1",
-    "headers": (
-        (b"User-Agent", b"Wget/1.21"),
-        (b"Accept", b"*/*"),
-        (b"Accept-Encoding", b"identity"),
-        (b"Host", b"www.testing.local"),
-        (b"Connection", b"Keep-Alive"),
-        (b"Proxy-Connection", b"Keep-Alive"),
-    ),
-    "content": b"",
-    "trailers": None,
-    "timestamp_start": 1623276395.5825248,
-    "timestamp_end": 1623276395.5842779,
-    "host": "www.testing.local",
-    "port": 80,
-    "method": b"GET",
-    "scheme": b"http",
-    "authority": b"",
-    "path": b"/",
-}
 
 class TestRPCClient(TestBase):
     """
@@ -130,7 +109,7 @@ class TestRPCClient(TestBase):
             ret = hpc.call(param)
     
     def test_request_encoder(self):
-        req_state = EXAMPLE_REQ
+        req_state = self.EXAMPLE_REQ
 
         req = Request(req_state)
 
@@ -150,7 +129,7 @@ class TestRPCClient(TestBase):
         client = self._mockHTTPClient()
 
         flow = self._mockFlow()
-        flow.request.get_state.return_value = EXAMPLE_REQ
+        flow.request.get_state.return_value = self.EXAMPLE_REQ
 
         response = MagicMock()
 

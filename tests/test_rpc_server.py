@@ -22,17 +22,12 @@ class TestRPCServer(TestBase):
         props.reply_to = "347269b8-0fff-4622-acd7-e4382f3f22ed"
         props.correlation_id = "999269b8-0fff-4622-acd7-e4382f3f22ed"
 
-        req = self._request()
+        req = self._req()
 
         return channel, method, props, req
 
     def _req(self):
-        host = "www.example.org"
-        port = 80
-        proto = "http"
-        bytes = base64.b64encode(b"lalalala").decode('ascii')
-
-        req = Request(host, port, proto, bytes)
+        req = Request(self.EXAMPLE_REQ)
 
         return req
 
@@ -46,13 +41,7 @@ class TestRPCServer(TestBase):
         server.on_request(ch, method, props, request.toJSON())
 
         self.assertEqual(server.send_request.call_count, 1)
-        self.assertEqual(server.send_request.call_args.args[0].host, request.host)
-        self.assertEqual(server.send_request.call_args.args[0].port, request.port)
-
-        self.assertEqual(ch.basic_publish.call_count, 1)
-        self.assertEqual(ch.basic_publish.call_args.kwargs['routing_key'], props.reply_to)
-        self.assertEqual(ch.basic_publish.call_args.kwargs['properties'].correlation_id, props.correlation_id)
-        self.assertEqual(ch.basic_publish.call_args.kwargs['body'], response_str)
+        self.assertTrue(False)
 
     @patch("socket.socket", autospec=True)
     def test_send_request(self, socket):

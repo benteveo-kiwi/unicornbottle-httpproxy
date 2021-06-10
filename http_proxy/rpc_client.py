@@ -1,10 +1,6 @@
-from h11._receivebuffer import ReceiveBuffer # type: ignore
 from http_proxy import rabbitmq, log
 from http_proxy.models import Request
 from io import BytesIO
-from mitmproxy.net.http import http1
-from mitmproxy.net.http.http1 import assemble
-from mitmproxy.net.http.http1.read import read_response_head
 from mitmproxy.script import concurrent
 from typing import Dict, Optional, Any
 import base64
@@ -127,21 +123,6 @@ class HTTPProxyAddon(object):
             flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
         finally:
             connection.close()
-
-    def parse_response(self, request : mitmproxy.net.http.Request, response : bytes) -> mitmproxy.net.http.Response:
-        """
-        Parses response into an object as required by mitmproxy.
-        
-        Args:
-            request: the original request. 
-            response: the response in bytes.
-        Returns:
-            response: the parsed response object with content populated.
-        """
-        response_file = BytesIO(response)
-        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request) # type: ignore
-
-        return parsed_response
 
     def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
         """
