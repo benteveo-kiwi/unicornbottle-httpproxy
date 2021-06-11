@@ -99,12 +99,12 @@ class TestRPCClient(TestBase):
         self.assertEqual(len(req_state['headers']), len(req_parsed.state['headers']))
 
     def test_request_method(self):
+        response = self._resp()
         client = self._mockHTTPClient()
+        client.call.return_value = response.toJSON()
 
         flow = self._mockFlow()
         flow.request.get_state.return_value = self.EXAMPLE_REQ
-
-        response = MagicMock()
 
         addon = HTTPProxyAddon()
         addon._request(client, flow)
@@ -113,8 +113,9 @@ class TestRPCClient(TestBase):
         rabbitRequest = json.loads(client.call.call_args.args[0])
         self.assertEqual(rabbitRequest['host'], flow.request.host)
 
-    def test_request_replaces_response(self):
-        self.assertTrue(False)
+        self.assertEqual(flow.response.http_version, response.state['http_version'].decode('utf-8'))
+        self.assertEqual(len(flow.response.headers), len(response.state['headers']))
+        self.assertEqual(flow.response.content, response.state['content'])
 
 if __name__ == '__main__':
     unittest.main()
