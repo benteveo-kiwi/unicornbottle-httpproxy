@@ -113,6 +113,7 @@ class TestRPCClient(TestBase):
         rabbitRequest = json.loads(client.call.call_args.args[0])
         self.assertEqual(rabbitRequest['host'], flow.request.host)
 
+        # Check responses are replaced.
         self.assertEqual(flow.response.http_version, response.state['http_version'].decode('utf-8'))
         self.assertEqual(len(flow.response.headers), len(response.state['headers']))
         self.assertEqual(flow.response.content, response.state['content'])

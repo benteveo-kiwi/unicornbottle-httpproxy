@@ -44,22 +44,39 @@ class TestRPCServer(TestBase):
 
     @patch("socket.socket", autospec=True)
     def test_send_request(self, socket):
-        self.assertTrue(False)
         server = self._getServer()
+        server.get_socket = MagicMock(spec=RPCServer.get_socket, return_value=socket.return_value)
+        server.parse_response = MagicMock(spec=RPCServer.parse_response)
+        server.get_raw_request = MagicMock(spec=RPCServer.get_raw_request)
+        req = self._req().toMITM()
+
+        resp = server.send_request(req)
+
+        sock_instance = socket.return_value
+
+        self.assertEqual(sock_instance.connect.call_count, 1)
+        self.assertEqual(sock_instance.connect.call_args[0][0], ('www.testing.local', 80))
+
+        self.assertEqual(sock_instance.send.call_count, 1)
+        self.assertEqual(sock_instance.send.call_args[0][0], server.get_raw_request.return_value)
+
+        self.assertEqual(resp, server.parse_response.return_value)
+
+    @patch("ssl.create_default_context", autospec=True)
+    @patch("socket.socket", autospec=True)
+    def test_get_socket(self, socket, ssl_cdc):
+
+        server = self._getServer()
+
         req = self._req()
+        returned_socket = server.get_socket(req.toMITM())
 
-        i = 0
-        def func(*args, **kwargs):
-            if i == 0:
-                i += 1
-                return "WhateverResponse"
+        self.assertEqual(socket.return_value, returned_socket) # scheme == http on default test request.
+        self.assertEqual(socket.return_value.settimeout.call_count, 1) # need to timeout sometime.
+        
+        req = self._req()
+        req.state['scheme'] = 'https'
+        returned_socket = server.get_socket(req.toMITM())
 
-        socket.send.return_value = func
-
-        server.send_request(req)
-
-        self.assertEquals(socket.call_count, 1)
-
-    def test_send_request_ssl(self):
-        self.assertTrue(False)
+        self.assertEqual(ssl_cdc().wrap_socket(), returned_socket) # scheme == http on default test request.
 

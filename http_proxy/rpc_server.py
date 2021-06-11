@@ -9,9 +9,10 @@ import json
 import mitmproxy.net.http
 import pika
 import socket
+import ssl
 
 logger = log.getLogger("rpc_server", server=True)
-TIMEOUT = 10
+TIMEOUT = 15
 
 class RPCServer(object):
     """
@@ -33,7 +34,8 @@ class RPCServer(object):
         
         return raw_request
 
-    def parse_response(self, request : mitmproxy.net.http.Request, socket : socket.socket) -> mitmproxy.net.http.Response:
+    def parse_response(self, request : mitmproxy.net.http.Request, 
+            socket : socket.socket) -> mitmproxy.net.http.Response:
         """
         Instructs internal mitmproxy methods to parse the response from socket.
         
@@ -48,6 +50,38 @@ class RPCServer(object):
 
         return parsed_response
 
+    def get_socket(self, request : mitmproxy.net.http.Request) -> socket.socket:
+        """
+        Gets the appropriate socket for the passed-in request. If SSL is
+        required based on the request, a SSL wrapper is configured and returned
+        instead.
+
+        Several key security features are purposefully disabled in order to
+        facilitate testing of hosts with broken SSL security. These features
+        are hostname checking and TLS certificate verification. To add insult
+        to injury, SSLv2 and SSLv3 are also enabled.
+
+        Args:
+            request: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
+
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(TIMEOUT)
+
+        if request.scheme == "https":
+            context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+
+            context.options &= ~ssl.OP_NO_SSLv3
+            context.options &= ~ssl.OP_NO_SSLv2
+
+            ssl_sock = context.wrap_socket(sock, server_hostname=request.host)
+            return ssl_sock
+        else:
+            return sock
+
     def send_request(self, request : mitmproxy.net.http.Request) -> mitmproxy.net.http.Response:
         """
         Main connection handler. Opens a socket, optionally wrapping with SSL
@@ -57,8 +91,7 @@ class RPCServer(object):
             request: the request as sent by the proxy. It will be assembled and
                 sent.
         """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(TIMEOUT)
+        sock = self.get_socket(request)
         sock.connect((request.host, request.port))
 
         request_bytes = self.get_raw_request(request)
@@ -111,14 +144,14 @@ def listen():
             logger.info("HTTP Server consumer %s successfully. Listening for messages." % verb)
             started_once = True
 
-            try:
-                channel.start_consuming()
-            except KeyboardInterrupt:
-                logger.error("Received Ctrl + C. Shutting down...")
-                channel.stop_consuming()
-                break
+            channel.start_consuming()
+
+        except KeyboardInterrupt:
+            logger.error("Received Ctrl + C. Shutting down...")
+            break
         except:
             logger.exception("Unhandled exception in server thread. Will attempt to restart.", exc_info=True)
         finally:
+            channel.stop_consuming()
             connection.close()
 
