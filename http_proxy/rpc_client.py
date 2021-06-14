@@ -10,7 +10,9 @@ import sys
 import time
 import uuid
 
-# https://stackoverflow.com/questions/39689678/python-serialize-httpflow-object-mitm
+# https://www.postgresql.org/docs/8.3/wal-async-commit.html
+# https://www.stevenrombauts.be/2019/01/run-multiple-instances-of-the-same-systemd-unit/
+# https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6
 
 PROCESS_TIME_LIMIT = 15
 logger = log.getLogger("rpc_client", server=False)
