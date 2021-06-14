@@ -119,10 +119,16 @@ class HTTPProxyAddon(object):
         pydoc3 mitmproxy.net.http.request
         """
         try:
+            time_start = time.time()
             connection = rabbitmq.new_connection()
+            time_endconnect = time.time() - time_start
+
             http_proxy_client = HTTPProxyClient(connection)
 
             self._request(http_proxy_client, flow)
+            time_handled = time.time() - time_start
+
+            logger.info("Successfully handled request to %s. time to connect: %s, time to handle: %s" % (flow.request.pretty_url, time_endconnect, time_handled))
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
             flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
@@ -142,5 +148,4 @@ class HTTPProxyAddon(object):
         response_json = http_proxy_client.call(req.toJSON().encode('utf-8'))
 
         flow.response = Response.fromJSON(response_json).toMITM()
-        logger.info("Successfully handled request to %s. Response %s" % (flow.request.pretty_url, flow.response))
 
