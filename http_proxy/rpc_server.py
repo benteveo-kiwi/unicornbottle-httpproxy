@@ -10,6 +10,7 @@ import mitmproxy.net.http
 import pika
 import socket
 import ssl
+import time
 
 logger = log.getLogger("rpc_server", server=True)
 TIMEOUT = 15
@@ -108,6 +109,7 @@ class RPCServer(object):
         @see: https://pika.readthedocs.io/en/stable/modules/channel.html#pika.channel.Channel.basic_consume
         """
 
+        start_time = time.time()
         if props.reply_to is None:
             logger.error("Received message without routing key. Ignoring. Body '%r'." % body)
             return
@@ -120,6 +122,9 @@ class RPCServer(object):
             raise
 
         response = self.send_request(request)
+
+        logger.info("Successfully sent message and got response in %s seconds. Now sending." % (time.time() - start_time) )
+
         response_body = Response(response.get_state()).toJSON()
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
