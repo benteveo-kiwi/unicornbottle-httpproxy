@@ -6,6 +6,7 @@ from mitmproxy.net.http.http1.read import read_response_head
 from typing import Dict, Optional, Any
 import base64
 import json
+import mitmproxy.http
 import mitmproxy.net.http
 import pika
 import socket
@@ -102,6 +103,7 @@ class RPCServer(object):
 
         return response
 
+
     def on_request(self, ch : pika.channel.Channel, method : Any, props :
             pika.spec.BasicProperties, body : bytes) -> None:
         """
@@ -110,26 +112,60 @@ class RPCServer(object):
         """
 
         start_time = time.time()
-        if props.reply_to is None:
-            logger.error("Received message without routing key. Ignoring. Body '%r'." % body)
-            return
 
         try:
             request = Request.fromJSON(body).toMITM()
             logger.info("Successfully received message from queue. Sending to %s." % request.host)
         except json.decoder.JSONDecodeError:
-            logger.exception("Couldn't decode a JSON object and am having a bad time. Body '%r'." % body)
-            raise
+            msg = b"Couldn't decode a JSON object and am having a bad time. Body '%r'." % body
+            logger.exception(msg)
+            return self.send_error_response(ch, props, 503, msg)
 
-        response = self.send_request(request)
+        try:
+            response = self.send_request(request)
+            logger.info("Successfully sent message and got response in %s seconds. Now sending." % (time.time() - start_time) )
+            return self.send_response(ch, props, response)
+        except:
+            msg = b"rpc_server.py could not proxy message to destination."
+            logger.exception(msg)
+            self.send_error_response(ch, props, 502, msg)
 
-        logger.info("Successfully sent message and got response in %s seconds. Now sending." % (time.time() - start_time) )
+    def send_error_response(self, ch : pika.channel.Channel, props :
+            pika.spec.BasicProperties, status_code:int, message:bytes) -> None:
+        """
+        Generic response for unexpected errors. It is important to fail as
+        quickly as possible because otherwise the requester has to wait until
+        timeout occurs.
 
+        Args:
+            ch: channel as passed by pika.
+            props: as passed by pika.
+            status_code: the HTTP status code to set in the response.
+            message: the HTTP response body bytes.
+        """
+        response = mitmproxy.http.HTTPResponse.make(status_code, message)
+        self.send_response(ch, props, response)
+    
+    def send_response(self, ch : pika.channel.Channel, props :
+            pika.spec.BasicProperties, response : mitmproxy.http.HTTPResponse) -> None:
+        """
+        Sends the response back to the queue.
+
+        Args:
+            ch: channel as passed in by pika
+            props: as passed in by pika.
+            response: the response to encode and send.
+        """
         response_body = Response(response.get_state()).toJSON()
+
+        if props.reply_to is None:
+            msg = b"Received message without routing key. Cannot send reply."
+            logger.error(msg)
+            raise
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
         ch.basic_publish(exchange='', routing_key=props.reply_to,
-                         properties=my_props, body=response_body.encode('utf-8'))
+                properties=my_props, body=response_body.encode('utf-8')) # type: ignore
 
 def listen():
     started_once = False

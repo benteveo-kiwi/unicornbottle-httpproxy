@@ -201,7 +201,7 @@ class HTTPProxyAddon(object):
 
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
-            flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
+            flow.response = mitmproxy.http.HTTPResponse.make(503, b"HTTP Proxy unhandled exception")
 
     def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
         """
