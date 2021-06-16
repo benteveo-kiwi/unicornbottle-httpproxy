@@ -130,34 +130,32 @@ class HTTPProxyClient(object):
         start = time.time()
         try:
             while True:
-                with self.lock:
-                    # self.connection.add_callback_threadsafe(self.connection.process_data_events)
+                resp = None
+                try:
+                    resp = self.responses[corr_id]
+                except KeyError:
+                    pass
 
-                    resp = None
-                    try:
-                        resp = self.responses[corr_id]
-                    except KeyError:
-                        pass
+                timeout = time.time() - start >= PROCESS_TIME_LIMIT
 
-                    timeout = time.time() - start >= PROCESS_TIME_LIMIT
-
-                    if not resp and timeout:
-                        raise TimeoutException
-                    elif resp:
-                        return self.responses[corr_id]
+                if not resp and timeout:
+                    raise TimeoutException
+                elif resp:
+                    return self.responses[corr_id]
 
                 time.sleep(0.01) # sleep outside of the lock.
 
         finally:
-            try:
-                del self.corr_ids[corr_id]
-            except KeyError:
-                pass
+            with self.lock:
+                try:
+                    del self.corr_ids[corr_id]
+                except KeyError:
+                    pass
 
-            try:
-                del self.responses[corr_id]
-            except KeyError:
-                pass
+                try:
+                    del self.responses[corr_id]
+                except KeyError:
+                    pass
 
 
 class HTTPProxyAddon(object):
@@ -201,7 +199,7 @@ class HTTPProxyAddon(object):
 
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
-            flow.response = mitmproxy.http.HTTPResponse.make(503, b"HTTP Proxy unhandled exception")
+            flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
 
     def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
         """

@@ -115,7 +115,6 @@ class RPCServer(object):
 
         try:
             request = Request.fromJSON(body).toMITM()
-            logger.info("Successfully received message from queue. Sending to %s." % request.host)
         except json.decoder.JSONDecodeError:
             msg = b"Couldn't decode a JSON object and am having a bad time. Body '%r'." % body
             logger.exception(msg)
