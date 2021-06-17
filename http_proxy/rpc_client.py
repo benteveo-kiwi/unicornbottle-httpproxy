@@ -72,7 +72,6 @@ class HTTPProxyClient(object):
         except:
             logger.exception("Exception in consumer thread")
         finally:
-            self.channel.close()
             self.connection.close()
 
     def on_response(self, ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
@@ -94,7 +93,7 @@ class HTTPProxyClient(object):
                 self.responses[props.correlation_id] = body
                 del self.corr_ids[props.correlation_id]
 
-    def call(self, message_body : bytes) -> bytes:
+    def call(self, message_body : bytes, corr_id : str) -> bytes:
         """
         THIS FUNCTION IS CALLED BY MULTIPLE THREADS. Special care is needed in
         order to comply with pika's threading model. In short:
@@ -110,7 +109,8 @@ class HTTPProxyClient(object):
 
         Args:
             message_body: A JSON serialised `Request` Object.
-            The RPC response, as bytes.
+            corr_id: the correlation id for this request, a uuid.
+
         Raises:
             TimeoutException: PROCESS_TIME_LIMIT exceeded, request timeout.
         """
@@ -118,7 +118,6 @@ class HTTPProxyClient(object):
         if self.channel is None or self.connection is None:
             raise NotConnectedException("Not connected?")
 
-        corr_id = str(uuid.uuid4())
         self.corr_ids[corr_id] = True
 
         basic_pub = functools.partial(self.channel.basic_publish, exchange='', routing_key='rpc_queue',
@@ -193,25 +192,33 @@ class HTTPProxyAddon(object):
         """
         try:
             time_start = time.time()
+            corr_id = str(uuid.uuid4())
+            logger.debug("%s:Started handling for url %s" % (corr_id, flow.request.pretty_url))
 
-            self._request(self.client, flow)
+            self._request(self.client, flow, time_start, corr_id)
             time_handled = time.time() - time_start
+
+            logger.debug("%s:Done handling request in %s seconds" % (corr_id, time.time() - time_start))
 
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
             flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
 
-    def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow) -> None:
+    def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow, time_start:float, corr_id:str) -> None:
         """
         Internal method to facilitate dependency injection for testing.
 
         Args:
             http_proxy_client: Instance of HTTPProxyClient.
             flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
+            time_start: float indicating the time.time() at the time we started processing this request.
+            corr_id: the correlation_id for this request.
         """
 
         req = Request(flow.request.get_state())
-        response_json = http_proxy_client.call(req.toJSON().encode('utf-8'))
+        logger.debug("%s:Finished parsing request, took %s seconds so far." % (corr_id, time.time() - time_start))
+        response_json = http_proxy_client.call(req.toJSON().encode('utf-8'), corr_id)
+        logger.debug("%s:Finished receiving response, parsing. Took %s seconds so far." % (corr_id, time.time() - time_start))
 
         flow.response = Response.fromJSON(response_json).toMITM()
 
