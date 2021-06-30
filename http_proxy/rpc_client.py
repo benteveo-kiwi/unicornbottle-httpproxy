@@ -14,8 +14,6 @@ import time
 import uuid
 
 # https://www.postgresql.org/docs/8.3/wal-async-commit.html
-# https://www.stevenrombauts.be/2019/01/run-multiple-instances-of-the-same-systemd-unit/
-# https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6
 
 PROCESS_TIME_LIMIT = 15
 logger = log.getLogger("rpc_client", server=False)
@@ -72,6 +70,7 @@ class HTTPProxyClient(object):
         except:
             logger.exception("Exception in consumer thread")
         finally:
+            logger.error("Consumer thread is shutting down.")
             self.connection.close()
 
     def on_response(self, ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
