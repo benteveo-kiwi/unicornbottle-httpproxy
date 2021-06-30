@@ -168,30 +168,29 @@ class RPCServer(object):
 
 def listen():
     started_once = False
-    while True:
-        try:
-            connection = rabbitmq.new_connection()
-            channel = connection.channel()
-            channel.queue_declare(queue='rpc_queue')
+    try:
+        connection = rabbitmq.new_connection()
+        channel = connection.channel()
+        channel.queue_declare(queue='rpc_queue')
 
-            rpc_server = RPCServer()
+        rpc_server = RPCServer()
 
-            channel.basic_qos(prefetch_count=1)
-            channel.basic_consume(queue='rpc_queue', on_message_callback=rpc_server.on_request, auto_ack=True)
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue='rpc_queue', on_message_callback=rpc_server.on_request, auto_ack=True)
 
-            verb = "started" if started_once == False else "restarted"
+        verb = "started" if started_once == False else "restarted"
 
-            logger.info("HTTP Server consumer %s successfully. Listening for messages." % verb)
-            started_once = True
+        logger.info("HTTP Server consumer %s successfully. Listening for messages." % verb)
+        started_once = True
 
-            channel.start_consuming()
+        channel.start_consuming()
 
-        except KeyboardInterrupt:
-            logger.error("Received Ctrl + C. Shutting down...")
-            break
-        except:
-            logger.exception("Unhandled exception in server thread. Will attempt to restart.", exc_info=True)
-        finally:
-            channel.stop_consuming()
-            connection.close()
+    except KeyboardInterrupt:
+        logger.error("Received Ctrl + C. Shutting down...")
+    except:
+        logger.exception("Unhandled exception in server thread.", exc_info=True)
+        raise
+    finally:
+        channel.stop_consuming()
+        connection.close()
 

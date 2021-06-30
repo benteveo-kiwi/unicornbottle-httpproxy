@@ -1,15 +1,21 @@
 import logging
 import os
+import sys
 
 PROXY_LOG_FOLDER = '/var/log/ub-httpproxy-proxy'
 SERVER_LOG_FOLDER = '/var/log/ub-httpproxy-worker'
 
 def getLogger(name : str, server : bool) -> logging.Logger:
-    pid = os.getpid()
 
     if server:
+        
+        try:
+            id = sys.argv[1] # TODO: Migrate this out of this file.
+        except KeyError:
+            id = os.getpid()
+
         log_folder = SERVER_LOG_FOLDER
-        file = "ub-worker-%s.log" % pid
+        file = "ub-worker-%s.log" % id
         filename = "%s/%s" % (log_folder, file)
     else:
         log_folder = PROXY_LOG_FOLDER
