@@ -12,7 +12,7 @@ def getLogger(name : str, server : bool) -> logging.Logger:
         try:
             id = sys.argv[1] # TODO: Migrate this out of this file.
         except KeyError:
-            id = os.getpid()
+            id = str(os.getpid())
 
         log_folder = SERVER_LOG_FOLDER
         file = "ub-worker-%s.log" % id
