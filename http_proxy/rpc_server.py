@@ -111,8 +111,8 @@ class RPCServer(object):
         @see: https://pika.readthedocs.io/en/stable/modules/channel.html#pika.channel.Channel.basic_consume
         """
 
+        corr_id = props.correlation_id
         start_time = time.time()
-
         try:
             request = Request.fromJSON(body).toMITM()
         except json.decoder.JSONDecodeError:
@@ -121,8 +121,9 @@ class RPCServer(object):
             return self.send_error_response(ch, props, 503, msg)
 
         try:
+            logger.debug("%s:Received." % (corr_id))
             response = self.send_request(request)
-            logger.info("Successfully sent message and got response in %s seconds. Now sending." % (time.time() - start_time) )
+            logger.debug("%s:Successfully sent message and got response in %s seconds. Writing to response queue." % (corr_id, time.time() - start_time) )
             return self.send_response(ch, props, response)
         except:
             msg = b"rpc_server.py could not proxy message to destination."
