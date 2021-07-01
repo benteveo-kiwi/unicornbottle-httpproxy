@@ -215,9 +215,9 @@ class HTTPProxyAddon(object):
         """
 
         req = Request(flow.request.get_state())
-        logger.debug("%s:Finished parsing request, took %s seconds so far." % (corr_id, time.time() - time_start))
+        logger.debug("%s:Finished parsing request." % (corr_id))
         response_json = http_proxy_client.call(req.toJSON().encode('utf-8'), corr_id)
-        logger.debug("%s:Finished receiving response, parsing. Took %s seconds so far." % (corr_id, time.time() - time_start))
+        logger.debug("%s:Finished receiving response, parsing. Took %s seconds." % (corr_id, time.time() - time_start))
 
         flow.response = Response.fromJSON(response_json).toMITM()
 
