@@ -39,7 +39,7 @@ def configure_logging(type : Type, id : int = None) -> None:
                     race conditions in logging.")
 
         log_folder = WORKER_LOG_FOLDER
-        file = "ub-worker-%s.log" % id
+        file = "ub-worker-%s.log" % str(id)
         filename = "%s/%s" % (log_folder, file)
     else:
         log_folder = PROXY_LOG_FOLDER
