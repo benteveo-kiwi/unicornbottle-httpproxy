@@ -46,7 +46,18 @@ class HTTPProxyClient(object):
         self.corr_ids : Dict[str, bool] = {}
         self.responses : Dict[str, bytes] = {}
 
-        threading.Thread(target=self.init_connection).start()
+        self.thread = self.spawn_thread()
+
+    def spawn_thread(self) -> threading.Thread:
+        """
+        Creates an instance of the connection thread.
+
+        Return:
+            threading.Thread
+        """
+        thread = threading.Thread(target=self.init_connection)
+        thread.start()
+        return thread
 
     def init_connection(self):
         """
@@ -115,7 +126,10 @@ class HTTPProxyClient(object):
         """
 
         if self.channel is None or self.connection is None:
-            raise NotConnectedException("Not connected?")
+            if not self.thread.is_alive():
+                self.thread = self.spawn_thread()
+
+            raise NotConnectedException("Not connected?") # still raise. Clients must retry.
 
         self.corr_ids[corr_id] = True
 
