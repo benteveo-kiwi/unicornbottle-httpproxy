@@ -6,6 +6,7 @@ from mitmproxy.net.http.http1.read import read_response_head
 from typing import Dict, Optional, Any
 import base64
 import json
+import logging
 import mitmproxy.http
 import mitmproxy.net.http
 import pika
@@ -13,7 +14,7 @@ import socket
 import ssl
 import time
 
-logger = log.getLogger("rpc_server", server=True)
+logger = logging.getLogger(__name__)
 TIMEOUT = 15
 
 class RPCServer(object):

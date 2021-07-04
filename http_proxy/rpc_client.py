@@ -2,10 +2,11 @@ from http_proxy import rabbitmq, log
 from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
-from typing import Dict, Optional, Any
 from threading import Event, Thread
+from typing import Dict, Optional, Any
 import base64
 import functools
+import logging
 import mitmproxy
 import pika
 import sys
@@ -16,7 +17,7 @@ import uuid
 # https://www.postgresql.org/docs/8.3/wal-async-commit.html
 
 PROCESS_TIME_LIMIT = 15
-logger = log.getLogger("rpc_client", server=False)
+logger = logging.getLogger(__name__)
 
 class TimeoutException(Exception):
     pass
@@ -81,8 +82,9 @@ class HTTPProxyClient(object):
         except:
             logger.exception("Exception in consumer thread")
         finally:
-            logger.error("Consumer thread is shutting down.")
-            self.connection.close()
+            logger.error("Consumer thread is shutting down. See log for details.")
+            if self.connection:
+                self.connection.close()
 
     def on_response(self, ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
         """
