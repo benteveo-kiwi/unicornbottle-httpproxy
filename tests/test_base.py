@@ -1,6 +1,6 @@
 from http_proxy.models import Response, Request
 from http_proxy.rpc_client import HTTPProxyClient, HTTPProxyAddon
-from http_proxy.rpc_client import TimeoutException, AlreadyCalledException
+from http_proxy.rpc_client import TimeoutException
 from http_proxy.rpc_server import RPCServer
 from unittest.mock import MagicMock
 import mitmproxy
