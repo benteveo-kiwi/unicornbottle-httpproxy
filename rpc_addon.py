@@ -1,9 +1,11 @@
-from http_proxy.rpc_client import HTTPProxyAddon
+from http_proxy.rpc_client import HTTPProxyAddon, HTTPProxyClient
 from http_proxy.log import Type, configure_logging
 
-if __name__ == "__main__":
-    configure_logging(Type.PROXY)
+configure_logging(Type.PROXY)
+
+http_proxy_client = HTTPProxyClient()
+http_proxy_client.spawn_thread()
 
 addons = [
-    HTTPProxyAddon()
+    HTTPProxyAddon(http_proxy_client)
 ]

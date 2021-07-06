@@ -1,3 +1,4 @@
+from functools import partial
 from http_proxy import rabbitmq, log
 from http_proxy.models import Request, Response
 from io import BytesIO
@@ -5,7 +6,6 @@ from mitmproxy.script import concurrent
 from threading import Event, Thread
 from typing import Dict, Optional, Any
 import base64
-import functools
 import logging
 import mitmproxy
 import pika
@@ -32,33 +32,24 @@ class HTTPProxyClient(object):
 
     def __init__(self) -> None:
         """
-        Connect to RabbitMQ. Creating a new connection per thread is OK per Pika's author 
-        @see: https://github.com/pika/pika/issues/828#issuecomment-357773396
-        Args:
-            connection: a BlockingConnection instance.
+        Main constructor. `spawn_thread()` should normally be called next.
         """
 
         self.lock = threading.Lock()
 
         self.connection : Optional[pika.BlockingConnection] = None
         self.channel : Optional[pika.channel.Channel] = None
-
+        self.thread : Optional[threading.Thread] = None
 
         self.corr_ids : Dict[str, bool] = {}
         self.responses : Dict[str, bytes] = {}
 
-        self.thread = self.spawn_thread()
-
-    def spawn_thread(self) -> threading.Thread:
+    def spawn_thread(self):
         """
         Creates an instance of the connection thread.
-
-        Return:
-            threading.Thread
         """
-        thread = threading.Thread(target=self.init_connection)
-        thread.start()
-        return thread
+        self.thread = threading.Thread(target=self.init_connection)
+        self.thread.start()
 
     def init_connection(self):
         """
@@ -125,17 +116,19 @@ class HTTPProxyClient(object):
 
         Raises:
             TimeoutException: PROCESS_TIME_LIMIT exceeded, request timeout.
+            NotConnectedException: We're currently not connected to AMQ. Will
+                attempt to reconnect so that next `call` is successful.
         """
 
         if self.channel is None or self.connection is None:
-            if not self.thread.is_alive():
-                self.thread = self.spawn_thread()
+            if self.thread is None or not self.thread.is_alive():
+                self.spawn_thread()
 
-            raise NotConnectedException("Not connected?") # still raise. Clients must retry.
+            raise NotConnectedException("Not connected. Please retry in a jiffy.") # still raise. Clients must retry.
 
         self.corr_ids[corr_id] = True
 
-        basic_pub = functools.partial(self.channel.basic_publish, exchange='', routing_key='rpc_queue',
+        basic_pub = partial(self.channel.basic_publish, exchange='', routing_key='rpc_queue',
             properties=pika.BasicProperties(reply_to=self.callback_queue, correlation_id=corr_id,),
             body=message_body)
 
@@ -177,12 +170,10 @@ class HTTPProxyAddon(object):
     Handles integration with mitmproxy.
     """
 
-    def __init__(self):
+    def __init__(self, client : HTTPProxyClient):
         logger.info("Mitmproxy addon started.")
 
-        http_proxy_client = HTTPProxyClient()
-
-        self.client : HTTPProxyClient = http_proxy_client
+        self.client : HTTPProxyClient = client
 
         logger.info("Established connection to RabbitMQ.")
 

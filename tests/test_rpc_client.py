@@ -1,11 +1,12 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException
-from unittest.mock import MagicMock
 from tests.test_base import TestBase
-import mitmproxy
+from unittest.mock import MagicMock, patch
 import base64
 import json
+import mitmproxy
 import pika
+import time
 import unittest
 import uuid
 
@@ -23,8 +24,7 @@ class TestRPCClient(TestBase):
         self.assertEqual(hpc.callback_queue, conn.channel().queue_declare().method.queue)
 
     def test_on_response(self):
-        conn = self._mockConnection()
-        hpc = HTTPProxyClient(conn)
+        hpc = HTTPProxyClient()
 
         class MockProp():
             def __init__(self, correlation_id):
@@ -32,25 +32,34 @@ class TestRPCClient(TestBase):
 
         nb_response = 1337
 
-        hpc.corr_id = str(uuid.uuid4())
-        hpc.on_response(None, None, MockProp(hpc.corr_id), nb_response)
+        corr_id = str(uuid.uuid4())
+        hpc.corr_ids[corr_id] = True
+        hpc.on_response(None, None, MockProp(corr_id), nb_response)
 
-        self.assertEqual(hpc.response, nb_response)
+        self.assertEqual(hpc.responses[corr_id], nb_response)
 
-    def test_call(self):
-        conn = self._mockConnection()
-        hpc = HTTPProxyClient(conn)
+    @patch("http_proxy.rpc_client.partial", autospec=True)
+    def test_call(self, ftp):
+        hpc = HTTPProxyClient()
+        hpc.connection = self._mockConnection()
+        hpc.channel = self._mockChannel()
+        hpc.callback_queue = self._mockQueue()
+        
+        corr_id = uuid.uuid4()
+        body = "param"
 
-        def _side_effect(*args, **kwargs):
-            hpc.response = 1337
+        hpc.responses[corr_id] = 1337
 
-        hpc.connection.process_data_events.side_effect = _side_effect
+        ret = hpc.call(body, corr_id)
 
-        param = "param"
+        args, kwargs = ftp.call_args
 
-        ret = hpc.call(param)
+        self.assertEqual(hpc.connection.add_callback_threadsafe.call_count, 1)
+        self.assertEqual(args[0], hpc.channel.basic_publish)
+        self.assertEqual(kwargs['body'], body)
+        self.assertEqual(kwargs['properties'].correlation_id, corr_id)
+        self.assertEqual(kwargs['properties'].reply_to, hpc.callback_queue)
 
-        self.assertEqual(hpc.channel.basic_publish.call_args.kwargs['body'], param)
         self.assertEqual(ret, 1337)
 
     def test_call_timeout(self):
@@ -106,8 +115,8 @@ class TestRPCClient(TestBase):
         flow = self._mockFlow()
         flow.request.get_state.return_value = self.EXAMPLE_REQ
 
-        addon = HTTPProxyAddon()
-        addon._request(client, flow)
+        addon = HTTPProxyAddon(client)
+        addon._request(client, flow, time.time(), uuid.uuid4())
 
         # Ensure can parse JSON
         rabbitRequest = json.loads(client.call.call_args.args[0])

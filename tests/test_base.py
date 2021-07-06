@@ -86,6 +86,12 @@ OK"""
     def _mockConnection(self):
         return MagicMock(spec=pika.BlockingConnection)
 
+    def _mockChannel(self):
+        return MagicMock(spec=pika.channel.Channel)
+
+    def _mockQueue(self):
+        return MagicMock()
+
     def _mockHTTPClient(self):
         return MagicMock(spec=HTTPProxyClient)
 
