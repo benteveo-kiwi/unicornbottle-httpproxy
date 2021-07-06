@@ -14,15 +14,6 @@ class TestRPCClient(TestBase):
     """
     This file contains tests related to rpc_client.py mostly.
     """
-
-    def test_constructor(self):
-        conn = self._mockConnection()
-        hpc = HTTPProxyClient(conn)
-        
-        self.assertEqual(hpc.response, None)
-        self.assertEqual(hpc.channel, conn.channel())
-        self.assertEqual(hpc.callback_queue, conn.channel().queue_declare().method.queue)
-
     def test_on_response(self):
         hpc = HTTPProxyClient()
 
@@ -40,11 +31,8 @@ class TestRPCClient(TestBase):
 
     @patch("http_proxy.rpc_client.partial", autospec=True)
     def test_call(self, ftp):
-        hpc = HTTPProxyClient()
-        hpc.connection = self._mockConnection()
-        hpc.channel = self._mockChannel()
-        hpc.callback_queue = self._mockQueue()
-        
+        hpc = self._hpcWithMockedConn() 
+
         corr_id = uuid.uuid4()
         body = "param"
 
@@ -63,32 +51,29 @@ class TestRPCClient(TestBase):
         self.assertEqual(ret, 1337)
 
     def test_call_timeout(self):
-        conn = self._mockConnection()
-        hpc = HTTPProxyClient(conn)
-
-        def _side_effect(*args, **kwargs):
-            hpc.response = None
-
-        hpc.connection.process_data_events.side_effect = _side_effect
+        hpc = self._hpcWithMockedConn()
+        hpc.PROCESS_TIME_LIMIT = 0.00001
 
         with self.assertRaises(TimeoutException):
-            ret = hpc.call("param")
+            ret = hpc.call("param", "corr_id")
 
+    def test_call_can_call_multiple_times(self):
+        hpc = self._hpcWithMockedConn() 
 
-    def test_call_can_only_call_once(self):
-        conn = self._mockConnection()
-        hpc = HTTPProxyClient(conn)
+        corr_id1 = uuid.uuid4()
+        corr_id2 = uuid.uuid4()
+        body = "param"
 
-        def _side_effect(*args, **kwargs):
-            hpc.response = 1337
+        hpc.responses[corr_id1] = 1337
+        hpc.responses[corr_id2] = 1338
 
-        hpc.connection.process_data_events.side_effect = _side_effect
+        ret1 = hpc.call(body, corr_id1)
+        ret2 = hpc.call(body, corr_id2)
 
-        param = "param"
+        self.assertEqual(ret1, 1337)
+        self.assertEqual(ret2, 1338)
 
-        ret = hpc.call(param)
-        with self.assertRaises(AlreadyCalledException):
-            ret = hpc.call(param)
+        self.assertEquals(len(hpc.responses), 0)
     
     def test_request_encoder(self):
         req_state = self.EXAMPLE_REQ

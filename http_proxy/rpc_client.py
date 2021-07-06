@@ -16,7 +16,6 @@ import uuid
 
 # https://www.postgresql.org/docs/8.3/wal-async-commit.html
 
-PROCESS_TIME_LIMIT = 15
 logger = logging.getLogger(__name__)
 
 class TimeoutException(Exception):
@@ -30,11 +29,14 @@ class HTTPProxyClient(object):
     This function implements the RPC model in a thread-safe way.
     """
 
+    # Maximum time that we will wait for a `call`.
+    PROCESS_TIME_LIMIT = 15
+
     def __init__(self) -> None:
         """
-        Main constructor. `spawn_thread()` should normally be called next.
+        Main constructor. `spawn_thread()` should normally be called by the
+        instantiator immediately after construction.
         """
-
         self.lock = threading.Lock()
 
         self.connection : Optional[pika.BlockingConnection] = None
@@ -115,7 +117,7 @@ class HTTPProxyClient(object):
             corr_id: the correlation id for this request, a uuid.
 
         Raises:
-            TimeoutException: PROCESS_TIME_LIMIT exceeded, request timeout.
+            TimeoutException: self.PROCESS_TIME_LIMIT exceeded, request timeout.
             NotConnectedException: We're currently not connected to AMQ. Will
                 attempt to reconnect so that next `call` is successful.
         """
@@ -143,7 +145,7 @@ class HTTPProxyClient(object):
                 except KeyError:
                     pass
 
-                timeout = time.time() - start >= PROCESS_TIME_LIMIT
+                timeout = time.time() - start >= self.PROCESS_TIME_LIMIT
 
                 if not resp and timeout:
                     raise TimeoutException
