@@ -214,7 +214,7 @@ class HTTPProxyAddon(object):
 
     def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow, time_start:float, corr_id:str) -> None:
         """
-        Internal method to facilitate dependency injection for testing.
+        Send request to RabbitMQ.
 
         Args:
             http_proxy_client: Instance of HTTPProxyClient.
