@@ -204,8 +204,7 @@ class HTTPProxyAddon(object):
             self._request(self.client, flow, time_start, corr_id)
             time_handled = time.time() - time_start
 
-            logger.debug("%s:Done handling request in %s seconds" % (corr_id, time.time() - time_start))
-
+            logger.debug("%s:Done handling request. Total time %s seconds" % (corr_id, time.time() - time_start))
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
             flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
@@ -224,7 +223,7 @@ class HTTPProxyAddon(object):
         req = Request(flow.request.get_state())
         logger.debug("%s:Finished parsing request." % (corr_id))
         response_json = http_proxy_client.call(req.toJSON().encode('utf-8'), corr_id)
-        logger.debug("%s:Finished receiving response, parsing. Took %s seconds." % (corr_id, time.time() - time_start))
+        logger.debug("%s:Finished receiving response, parsing." % (corr_id,))
 
         flow.response = Response.fromJSON(response_json).toMITM()
 

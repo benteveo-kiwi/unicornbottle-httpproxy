@@ -112,6 +112,15 @@ class TestRPCClient(TestBase):
         self.assertEqual(len(flow.response.headers), len(response.state['headers']))
         self.assertEqual(flow.response.content, response.state['content'])
 
+    def test_db_write_success(self):
+        self.assertTrue(False)
+
+    def test_db_write_timeout(self):
+        self.assertTrue(False)
+
+    def test_db_write_otherexception(self):
+        self.assertTrue(False)
+
 if __name__ == '__main__':
     unittest.main()
 
