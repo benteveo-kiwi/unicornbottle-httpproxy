@@ -4,6 +4,14 @@ This is an HTTP proxy that distributes requests over a number of workers. This
 is achieved by sending the HTTP requests to a RabbitMQ queue, where it is
 picked up by a number of workers.
 
+# Cloning.
+
+This module uses `git submodules` to share code with other repositories. In order to clone those as well use the following command:
+
+```
+git clone --recurse-submodules <URL>
+```
+
 # Installation
 
 ```

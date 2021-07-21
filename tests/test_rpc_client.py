@@ -73,7 +73,7 @@ class TestRPCClient(TestBase):
         self.assertEqual(ret1, 1337)
         self.assertEqual(ret2, 1338)
 
-        self.assertEquals(len(hpc.responses), 0)
+        self.assertEqual(len(hpc.responses), 0)
     
     def test_request_encoder(self):
         req_state = self.EXAMPLE_REQ
