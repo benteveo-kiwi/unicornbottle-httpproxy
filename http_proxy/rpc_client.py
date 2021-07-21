@@ -14,8 +14,6 @@ import threading
 import time
 import uuid
 
-# https://www.postgresql.org/docs/8.3/wal-async-commit.html
-
 logger = logging.getLogger(__name__)
 
 class TimeoutException(Exception):
