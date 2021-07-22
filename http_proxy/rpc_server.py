@@ -3,6 +3,7 @@ from http_proxy.models import Request, Response
 from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.net.http.http1.read import read_response_head
+from pika.adapters.blocking_connection import BlockingChannel
 from typing import Dict, Optional, Any
 import base64
 import json
@@ -105,7 +106,7 @@ class RPCServer(object):
         return response
 
 
-    def on_request(self, ch : pika.channel.Channel, method : Any, props :
+    def on_request(self, ch : BlockingChannel, method : Any, props :
             pika.spec.BasicProperties, body : bytes) -> None:
         """
         Callback endpoint called by pika. For more documentation on the arguments, please
@@ -131,7 +132,7 @@ class RPCServer(object):
             logger.exception(msg)
             self.send_error_response(ch, props, 502, msg)
 
-    def send_error_response(self, ch : pika.channel.Channel, props :
+    def send_error_response(self, ch : BlockingChannel, props :
             pika.spec.BasicProperties, status_code:int, message:bytes) -> None:
         """
         Generic response for unexpected errors. It is important to fail as
@@ -147,7 +148,7 @@ class RPCServer(object):
         response = mitmproxy.http.HTTPResponse.make(status_code, message)
         self.send_response(ch, props, response)
     
-    def send_response(self, ch : pika.channel.Channel, props :
+    def send_response(self, ch : BlockingChannel, props :
             pika.spec.BasicProperties, response : mitmproxy.http.HTTPResponse) -> None:
         """
         Sends the response back to the queue.
@@ -157,7 +158,7 @@ class RPCServer(object):
             props: as passed in by pika.
             response: the response to encode and send.
         """
-        response_body = Response(response.get_state()).toJSON()
+        response_body = Response(response.get_state()).toJSON() # type:ignore
 
         if props.reply_to is None:
             msg = b"Received message without routing key. Cannot send reply."
@@ -168,7 +169,7 @@ class RPCServer(object):
         ch.basic_publish(exchange='', routing_key=props.reply_to,
                 properties=my_props, body=response_body.encode('utf-8')) # type: ignore
 
-def listen():
+def listen() -> None:
     started_once = False
     try:
         connection = rabbitmq.new_connection()

@@ -4,7 +4,7 @@ from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
 from threading import Event, Thread
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Callable
 import base64
 import logging
 import mitmproxy
@@ -32,29 +32,78 @@ class HTTPProxyClient(object):
 
     def __init__(self) -> None:
         """
-        Main constructor. `spawn_thread()` should normally be called by the
+        Main constructor. `threads_start()` should normally be called by the
         instantiator immediately after construction.
         """
         self.lock = threading.Lock()
 
         self.connection : Optional[pika.BlockingConnection] = None
-        self.channel : Optional[pika.channel.Channel] = None
-        self.thread : Optional[threading.Thread] = None
+        self.channel : Optional[pika.adapters.blocking_connection.BlockingChannel] = None
+        self.threads : Dict[Callable, threading.Thread] = {}
 
         self.corr_ids : Dict[str, bool] = {}
         self.responses : Dict[str, bytes] = {}
 
-    def spawn_thread(self):
+    def threads_start(self) -> None:
         """
-        Creates an instance of the connection thread.
-        """
-        self.thread = threading.Thread(target=self.init_connection)
-        self.thread.start()
+        Spwan the required threads and store them in self.threads. If the
+        thread is already present in that dictionary, we check whether it's
+        alive and if not we restart it. 
 
-    def init_connection(self):
+        This function is called both at startup and in the event a thread dies.
+
+        - RabbitMQ connection thread.
+        - PostgreSQL writer thread.
+        """
+        req_targets = [self.thread_rabbit, self.thread_postgres]
+        
+        for target in req_targets:
+            if target in self.threads and self.threads[target].is_alive():
+                continue
+
+            self.threads[target] = self.thread_spawn(target=target,
+                    name=target.__name__)
+
+    def threads_alive(self) -> bool:
+        """
+        Checks that all threads are currently alive.
+
+        Returns:
+            bool: True if all threads are alive, False if at least one thread
+                is currently dead.
+        """
+        
+        if len(self.threads) == 0:
+            return False
+
+        for thread in self.threads.values():
+            if not thread.is_alive():
+                return False
+
+        return True
+
+    def thread_spawn(self, target:Callable, name:str) -> threading.Thread:
+        """
+        Spawns a thread that calls the callable.
+
+        Args:
+            @see https://docs.python.org/3/library/threading.html#threading.Thread
+
+        Return: 
+            thread: the newly started thread.
+        """
+        thread = threading.Thread(target=target, name=name)
+        thread.start()
+
+        return thread
+
+    def thread_postgres(self) -> None:
+        pass
+
+    def thread_rabbit(self) -> None:
         """
         Initializes the responses queue and handles consumption of responses.
-        This is a blocking function and should be called from another thread.
+        This is a blocking function and should be called in a new Thread.
         """
         try:
             self.connection = rabbitmq.new_connection()
@@ -76,6 +125,10 @@ class HTTPProxyClient(object):
             logger.error("Consumer thread is shutting down. See log for details.")
             if self.connection:
                 self.connection.close()
+
+            # Ensure variables are unset if threads die.
+            self.connection = None
+            self.channel = None
 
     def on_response(self, ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
         """
@@ -120,9 +173,11 @@ class HTTPProxyClient(object):
                 attempt to reconnect so that next `call` is successful.
         """
 
-        if self.channel is None or self.connection is None:
-            if self.thread is None or not self.thread.is_alive():
-                self.spawn_thread()
+        if not self.threads_alive() or (self.connection is None or self.channel is None):
+            self.threads_start()
+        # if self.channel is None or self.connection is None:
+            # if self.thread is None or not self.thread.is_alive():
+                # self.spawn_thread()
 
             raise NotConnectedException("Not connected. Please retry in a jiffy.") # still raise. Clients must retry.
 
@@ -177,12 +232,15 @@ class HTTPProxyAddon(object):
 
         logger.info("Established connection to RabbitMQ.")
 
-    def done(self):
+    def done(self) -> None:
         """
         Called when mitmproxy exits.
         """
         logger.info("Exiting cleanly. Attempting to stop consuming queues.")
-        self.client.connection.add_callback_threadsafe(self.client.channel.stop_consuming)
+
+        if self.client.connection is not None and self.client.channel is not None:
+            self.client.connection.add_callback_threadsafe(self.client.channel.stop_consuming)
+
         logger.info("Exited.")
 
     @concurrent # type: ignore
@@ -220,7 +278,7 @@ class HTTPProxyAddon(object):
             corr_id: the correlation_id for this request.
         """
 
-        req = Request(flow.request.get_state())
+        req = Request(flow.request.get_state()) # type:ignore
         logger.debug("%s:Finished parsing request." % (corr_id))
         response_json = http_proxy_client.call(req.toJSON().encode('utf-8'), corr_id)
         logger.debug("%s:Finished receiving response, parsing." % (corr_id,))

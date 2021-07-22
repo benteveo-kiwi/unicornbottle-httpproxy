@@ -1,8 +1,10 @@
-from typing import Dict, Optional, Any, Union
+from typing import Dict, Optional, Any, Union, TypeVar, Type
 import base64
 import http_proxy
 import json
 import mitmproxy.net.http
+
+MS = TypeVar('MS', bound='MessageSerializer')
 
 class RequestEncoder(json.JSONEncoder):
     """
@@ -27,7 +29,7 @@ class RequestDecoder(json.JSONDecoder):
     Recursively iterates through all objects and decodes strings if they match
     the required prefix.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None: #type:ignore
         json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
     def decode_base64(self, string : str) -> Union[str, bytes]:
@@ -77,7 +79,7 @@ class MessageSerializer():
         return json.dumps(data, cls=RequestEncoder)
 
     @classmethod
-    def fromJSON(cls, json_str : bytes):
+    def fromJSON(cls : Type[MS], json_str : bytes) -> MS:
         """
         Creates a Request object from a JSON string.
 

@@ -23,7 +23,7 @@ class Type(Enum):
 class IDNotSetException(Exception):
     pass
 
-def configure_logging(type : Type, id : int = None) -> None:
+def configure_logging(type : Type, id : int = -1) -> None:
     """
     Instantiates the appropriate logger for this instance based on parameters.
 
@@ -34,7 +34,7 @@ def configure_logging(type : Type, id : int = None) -> None:
     """
     if type == Type.WORKER:
 
-        if not id:
+        if id == -1:
             raise IDNotSetException("Worker threads require an ID to prevent\
                     race conditions in logging.")
 
