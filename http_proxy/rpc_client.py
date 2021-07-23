@@ -101,11 +101,15 @@ class HTTPProxyClient(object):
 
     def thread_postgres(self) -> None:
         """
-        Manages the connection to PostgreSQL and regular insertion of rows.
+        Manages the connections to PostgreSQL and regular insertion of rows.
+
+        A queue of request/responses pending writes, located at
+        `self.db_write_queue`, is regularly popped in this function.
 
         The general idea is that writes are handled outside of the mitmdump
         thread so that database writes do not influence the proxy's response
-        speed times. One connection per schema is maintained.
+        speed times. One connection per database schema is maintained, for more
+        information see `unicornbottle.database`.
         """
         try:
             while True:
@@ -164,8 +168,11 @@ class HTTPProxyClient(object):
                 self.responses[props.correlation_id] = body
                 del self.corr_ids[props.correlation_id]
 
-    def call(self, message_body : bytes, corr_id : str) -> bytes:
+    def send_request(self, request : mitmproxy.net.http.Request, corr_id : str) -> mitmproxy.net.http.Response:
         """
+        Serialize and send the request to RabbitMQ, receive the response and
+        unserialize.
+
         THIS FUNCTION IS CALLED BY MULTIPLE THREADS. Special care is needed in
         order to comply with pika's threading model. In short:
 
@@ -179,7 +186,7 @@ class HTTPProxyClient(object):
         Handles writing to queue, polling until a response is received and timeouts.
 
         Args:
-            message_body: A JSON serialised `Request` Object.
+            request: A mitmproxy Request object.
             corr_id: the correlation id for this request, a uuid.
 
         Raises:
@@ -187,6 +194,7 @@ class HTTPProxyClient(object):
             NotConnectedException: We're currently not connected to AMQ. Will
                 attempt to reconnect so that next `call` is successful.
         """
+        message_body = Request(request.get_state()).toJSON() # type:ignore
 
         if not self.threads_alive() or (self.rabbit_connection is None or self.channel is None):
             logger.error("One or more threads are dead. Attempting to restart and sending error to client.")
@@ -215,10 +223,9 @@ class HTTPProxyClient(object):
                 if not resp and timeout:
                     raise TimeoutException
                 elif resp:
-                    return self.responses[corr_id]
+                    return Response.fromJSON(self.responses[corr_id]).toMITM()
 
-                time.sleep(0.01) # sleep outside of the lock.
-
+                time.sleep(0.001) 
         finally:
             with self.lock:
                 try:
@@ -271,7 +278,7 @@ class HTTPProxyAddon(object):
             corr_id = str(uuid.uuid4())
             logger.debug("%s:Started handling for url %s" % (corr_id, flow.request.pretty_url))
 
-            self._request(self.client, flow, time_start, corr_id)
+            flow.response = self.client.send_request(flow.request, corr_id)
             time_handled = time.time() - time_start
 
             logger.debug("%s:Done handling request. Total time %s seconds" % (corr_id, time.time() - time_start))
@@ -279,21 +286,4 @@ class HTTPProxyAddon(object):
             logger.exception("Unhandled exception in request thread.", exc_info=True)
             flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
 
-    def _request(self, http_proxy_client : HTTPProxyClient, flow : mitmproxy.http.HTTPFlow, time_start:float, corr_id:str) -> None:
-        """
-        Send request to RabbitMQ.
-
-        Args:
-            http_proxy_client: Instance of HTTPProxyClient.
-            flow: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
-            time_start: float indicating the time.time() at the time we started processing this request.
-            corr_id: the correlation_id for this request.
-        """
-
-        req = Request(flow.request.get_state()) # type:ignore
-        logger.debug("%s:Finished parsing request." % (corr_id))
-        response_json = http_proxy_client.call(req.toJSON().encode('utf-8'), corr_id)
-        logger.debug("%s:Finished receiving response, parsing." % (corr_id,))
-
-        flow.response = Response.fromJSON(response_json).toMITM()
 
