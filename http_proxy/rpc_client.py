@@ -1,5 +1,6 @@
 from functools import partial
 from unicornbottle.rabbitmq import rabbitmq_connect
+from unicornbottle.database import database_connect
 from http_proxy import log
 from http_proxy.models import Request, Response
 from io import BytesIO
@@ -38,7 +39,7 @@ class HTTPProxyClient(object):
         """
         self.lock = threading.Lock()
 
-        self.connection : Optional[pika.BlockingConnection] = None
+        self.rabbit_connection : Optional[pika.BlockingConnection] = None
         self.channel : Optional[pika.adapters.blocking_connection.BlockingChannel] = None
         self.threads : Dict[Callable, threading.Thread] = {}
 
@@ -120,8 +121,8 @@ class HTTPProxyClient(object):
         This is a blocking function and should be called in a new Thread.
         """
         try:
-            self.connection = rabbitmq_connect()
-            self.channel = self.connection.channel()
+            self.rabbit_connection = rabbitmq_connect()
+            self.channel = self.rabbit_connection.channel()
 
             # Create a queue for handling the responses.
             result = self.channel.queue_declare(queue='', exclusive=True)
@@ -137,11 +138,11 @@ class HTTPProxyClient(object):
             logger.exception("Exception in RabbitMQ thread")
         finally:
             logger.error("RabbitMQ thread is shutting down. See log above for details.")
-            if self.connection:
-                self.connection.close()
+            if self.rabbit_connection:
+                self.rabbit_connection.close()
 
             # Ensure variables are unset if threads die.
-            self.connection = None
+            self.rabbit_connection = None
             self.channel = None
 
     def on_response(self, ch : Any, method : Any, props : pika.spec.BasicProperties, body : bytes) -> None:
@@ -187,7 +188,7 @@ class HTTPProxyClient(object):
                 attempt to reconnect so that next `call` is successful.
         """
 
-        if not self.threads_alive() or (self.connection is None or self.channel is None):
+        if not self.threads_alive() or (self.rabbit_connection is None or self.channel is None):
             logger.error("One or more threads are dead. Attempting to restart and sending error to client.")
             self.threads_start()
             raise NotConnectedException("Not connected. Please retry in a jiffy.") # still raise. Clients must retry.
@@ -198,7 +199,7 @@ class HTTPProxyClient(object):
             properties=pika.BasicProperties(reply_to=self.callback_queue, correlation_id=corr_id,),
             body=message_body)
 
-        self.connection.add_callback_threadsafe(basic_pub)
+        self.rabbit_connection.add_callback_threadsafe(basic_pub)
 
         start = time.time()
         try:
@@ -249,8 +250,8 @@ class HTTPProxyAddon(object):
         """
         logger.info("Exiting cleanly. Attempting to stop consuming queues.")
 
-        if self.client.connection is not None and self.client.channel is not None:
-            self.client.connection.add_callback_threadsafe(self.client.channel.stop_consuming)
+        if self.client.rabbit_connection is not None and self.client.channel is not None:
+            self.client.rabbit_connection.add_callback_threadsafe(self.client.channel.stop_consuming)
 
         logger.info("Exited.")
 
