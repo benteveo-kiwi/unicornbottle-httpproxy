@@ -21,7 +21,7 @@ pip install -r requirements.txt requirements_test.txt
 # To run:
 
 ```
-mitmdump --no-http2 -s rpc_addon.py
+sudo -u httpproxy mitmdump --no-http2 -s rpc_addon.py
 ```
 
 I disable HTTP2 because I don't need that kind of functionality and it could be

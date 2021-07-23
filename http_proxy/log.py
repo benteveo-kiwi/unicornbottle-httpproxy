@@ -50,4 +50,3 @@ def configure_logging(type : Type, id : int = -1) -> None:
 
     logging.getLogger("pika").setLevel(logging.WARNING)
 
-

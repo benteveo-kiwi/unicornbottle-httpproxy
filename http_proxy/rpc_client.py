@@ -1,5 +1,6 @@
 from functools import partial
-from http_proxy import rabbitmq, log
+from unicornbottle.rabbitmq import rabbitmq_connect
+from http_proxy import log
 from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
@@ -46,7 +47,7 @@ class HTTPProxyClient(object):
 
     def threads_start(self) -> None:
         """
-        Spwan the required threads and store them in self.threads. If the
+        Spawn the required threads and store them in self.threads. If the
         thread is already present in that dictionary, we check whether it's
         alive and if not we restart it. 
 
@@ -98,7 +99,20 @@ class HTTPProxyClient(object):
         return thread
 
     def thread_postgres(self) -> None:
-        pass
+        """
+        Manages the connection to PostgreSQL and regular insertion of rows.
+
+        The general idea is that writes are handled outside of the mitmdump
+        thread so that database writes do not influence the proxy's response
+        speed times. One connection per schema is maintained.
+        """
+        try:
+            while True:
+                time.sleep(1)
+        except:
+            logger.exception("Exception in PostgreSQL thread")
+        finally:
+            logger.error("PostgreSQL thread is shutting down. See log for details.")
 
     def thread_rabbit(self) -> None:
         """
@@ -106,7 +120,7 @@ class HTTPProxyClient(object):
         This is a blocking function and should be called in a new Thread.
         """
         try:
-            self.connection = rabbitmq.new_connection()
+            self.connection = rabbitmq_connect()
             self.channel = self.connection.channel()
 
             # Create a queue for handling the responses.
@@ -120,9 +134,9 @@ class HTTPProxyClient(object):
             logger.info("Thread ready to start consuming")
             self.channel.start_consuming() 
         except:
-            logger.exception("Exception in consumer thread")
+            logger.exception("Exception in RabbitMQ thread")
         finally:
-            logger.error("Consumer thread is shutting down. See log for details.")
+            logger.error("RabbitMQ thread is shutting down. See log above for details.")
             if self.connection:
                 self.connection.close()
 
@@ -174,11 +188,8 @@ class HTTPProxyClient(object):
         """
 
         if not self.threads_alive() or (self.connection is None or self.channel is None):
+            logger.error("One or more threads are dead. Attempting to restart and sending error to client.")
             self.threads_start()
-        # if self.channel is None or self.connection is None:
-            # if self.thread is None or not self.thread.is_alive():
-                # self.spawn_thread()
-
             raise NotConnectedException("Not connected. Please retry in a jiffy.") # still raise. Clients must retry.
 
         self.corr_ids[corr_id] = True

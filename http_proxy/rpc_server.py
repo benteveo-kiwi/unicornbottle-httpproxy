@@ -1,10 +1,11 @@
-from http_proxy import rabbitmq, log
+from http_proxy import log
 from http_proxy.models import Request, Response
 from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.net.http.http1.read import read_response_head
 from pika.adapters.blocking_connection import BlockingChannel
 from typing import Dict, Optional, Any
+from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import json
 import logging
@@ -172,7 +173,7 @@ class RPCServer(object):
 def listen() -> None:
     started_once = False
     try:
-        connection = rabbitmq.new_connection()
+        connection = rabbitmq_connect()
         channel = connection.channel()
         channel.queue_declare(queue='rpc_queue')
 
