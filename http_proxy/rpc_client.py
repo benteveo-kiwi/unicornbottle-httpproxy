@@ -273,6 +273,12 @@ class HTTPProxyAddon(object):
         pydoc3 mitmproxy.http
         pydoc3 mitmproxy.net.http.request
         """
+        return self._request(flow)
+
+    def _request(self, flow: mitmproxy.http.HTTPFlow) -> None:
+        """
+        Same as _request but without the wrapper to facilitate testing.
+        """
         try:
             time_start = time.time()
             corr_id = str(uuid.uuid4())

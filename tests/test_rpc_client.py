@@ -34,28 +34,30 @@ class TestRPCClient(TestBase):
         hpc = self._hpcWithMockedConn() 
 
         corr_id = uuid.uuid4()
-        body = "param"
+        body = self._req().toMITM()
 
-        hpc.responses[corr_id] = 1337
+        resp = self._resp()
+        resp.state['status_code'] = 309
+        hpc.responses[corr_id] = resp.toJSON()
 
-        ret = hpc.call(body, corr_id)
+        ret = hpc.send_request(body, corr_id)
 
         args, kwargs = ftp.call_args
 
-        self.assertEqual(hpc.connection.add_callback_threadsafe.call_count, 1)
+        self.assertEqual(hpc.rabbit_connection.add_callback_threadsafe.call_count, 1)
         self.assertEqual(args[0], hpc.channel.basic_publish)
-        self.assertEqual(kwargs['body'], body)
+        self.assertEqual(kwargs['body'], self._req().toJSON())
         self.assertEqual(kwargs['properties'].correlation_id, corr_id)
         self.assertEqual(kwargs['properties'].reply_to, hpc.callback_queue)
 
-        self.assertEqual(ret, 1337)
+        self.assertEqual(ret.status_code, 309) # made up status to ensure the response is the same.
 
     def test_call_timeout(self):
         hpc = self._hpcWithMockedConn()
         hpc.PROCESS_TIME_LIMIT = 0.00001
 
         with self.assertRaises(TimeoutException):
-            ret = hpc.call("param", "corr_id")
+            ret = hpc.send_request(self._req().toMITM(), "corr_id")
 
     def test_call_can_call_multiple_times(self):
         hpc = self._hpcWithMockedConn() 
@@ -101,17 +103,17 @@ class TestRPCClient(TestBase):
     def test_request_method(self):
         response = self._resp()
         client = self._mockHTTPClient()
-        client.call.return_value = response.toJSON()
+        client.send_request.return_value = response.toMITM()
 
         flow = self._mockFlow()
         flow.request.get_state.return_value = self.EXAMPLE_REQ
 
         addon = HTTPProxyAddon(client)
-        addon._request(client, flow, time.time(), uuid.uuid4())
+        addon._request(flow)
 
         # Ensure can parse JSON
-        rabbitRequest = json.loads(client.call.call_args.args[0])
-        self.assertEqual(rabbitRequest['host'], flow.request.host)
+        sent_request = client.send_request.call_args.args[0]
+        self.assertEqual(sent_request.host, flow.request.host)
 
         # Check responses are replaced.
         self.assertEqual(flow.response.http_version, response.state['http_version'].decode('utf-8'))

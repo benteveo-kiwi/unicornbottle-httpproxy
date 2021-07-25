@@ -74,12 +74,12 @@ OK"""
         return channel, method, props, req
 
     def _req(self):
-        req = Request(self.EXAMPLE_REQ)
+        req = Request(self.EXAMPLE_REQ.copy())
 
         return req
 
     def _resp(self):
-        resp = Response(self.EXAMPLE_RESP)
+        resp = Response(self.EXAMPLE_RESP.copy())
 
         return resp
 
