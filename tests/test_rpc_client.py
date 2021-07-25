@@ -62,16 +62,22 @@ class TestRPCClient(TestBase):
 
         corr_id1 = uuid.uuid4()
         corr_id2 = uuid.uuid4()
-        body = "param"
+        body = self._req().toMITM()
 
-        hpc.responses[corr_id1] = 1337
-        hpc.responses[corr_id2] = 1338
+        resp1 = self._resp().toJSON()
 
-        ret1 = hpc.call(body, corr_id1)
-        ret2 = hpc.call(body, corr_id2)
+        resp2 = self._resp()
+        resp2.state['status_code'] = 200
+        resp2 = resp2.toJSON()
 
-        self.assertEqual(ret1, 1337)
-        self.assertEqual(ret2, 1338)
+        hpc.responses[corr_id1] = resp1
+        hpc.responses[corr_id2] = resp2
+
+        ret1 = hpc.send_request(body, corr_id1)
+        ret2 = hpc.send_request(body, corr_id2)
+
+        self.assertEqual(ret1.status_code, 404)
+        self.assertEqual(ret2.status_code, 200)
 
         self.assertEqual(len(hpc.responses), 0)
     
@@ -112,13 +118,16 @@ class TestRPCClient(TestBase):
         self.assertEqual(len(flow.response.headers), len(response.state['headers']))
         self.assertEqual(flow.response.content, response.state['content'])
 
-    def test_db_write_success(self):
+    def test_queue_write_success(self):
         self.assertTrue(False)
 
-    def test_db_write_timeout(self):
+    def test_queue_write_timeout(self):
         self.assertTrue(False)
 
-    def test_db_write_otherexception(self):
+    def test_queue_write_otherexception(self):
+        self.assertTrue(False)
+
+    def test_db_write(self):
         self.assertTrue(False)
 
 if __name__ == '__main__':

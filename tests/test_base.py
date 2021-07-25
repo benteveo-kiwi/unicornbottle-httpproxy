@@ -107,8 +107,10 @@ OK"""
 
     def _hpcWithMockedConn(self):
         hpc = HTTPProxyClient()
-        hpc.connection = self._mockConnection()
+        hpc.rabbit_connection = self._mockConnection()
         hpc.channel = self._mockChannel()
         hpc.callback_queue = self._mockQueue()
+
+        hpc.threads_alive = MagicMock(return_value=True)
 
         return hpc
