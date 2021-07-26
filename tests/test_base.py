@@ -18,6 +18,8 @@ Connection: Closed
 
 OK"""
 
+    TEST_GUID = b"3935729b-c1f7-40ab-9dfc-e19b699c2eae"
+
     EXAMPLE_REQ = {
         "http_version": b"HTTP/1.1",
         "headers": (
@@ -27,6 +29,7 @@ OK"""
             (b"Host", b"www.testing.local"),
             (b"Connection", b"Keep-Alive"),
             (b"Proxy-Connection", b"Keep-Alive"),
+            (b"X-UB-GUID", TEST_GUID),
         ),
         "content": b"",
         "trailers": None,

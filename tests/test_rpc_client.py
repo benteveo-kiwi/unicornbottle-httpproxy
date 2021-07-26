@@ -121,7 +121,32 @@ class TestRPCClient(TestBase):
         self.assertEqual(flow.response.content, response.state['content'])
 
     def test_queue_write_success(self):
-        self.assertTrue(False)
+        hpc = self._hpcWithMockedConn() 
+        hpc.db_write_queue = MagicMock()
+
+        corr_id = uuid.uuid4()
+        body = self._req().toMITM()
+        hpc.responses[corr_id] = self._resp().toJSON()
+        ret = hpc.send_request(body, corr_id)
+
+        self.assertEqual(hpc.db_write_queue.put.call_count, 1)
+
+    def test_queue_no_write_if_no_target(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.db_write_queue = MagicMock()
+
+        corr_id = uuid.uuid4()
+        req = self._req()
+        req.state['headers'] = (
+            (b"User-Agent", b"Wget/1.21"),
+            (b"Host", b"www.testing.local"),
+        )
+
+        body = req.toMITM()
+        hpc.responses[corr_id] = self._resp().toJSON()
+        ret = hpc.send_request(body, corr_id)
+
+        self.assertEqual(hpc.db_write_queue.put.call_count, 1)
 
     def test_queue_write_timeout(self):
         self.assertTrue(False)
@@ -130,6 +155,12 @@ class TestRPCClient(TestBase):
         self.assertTrue(False)
 
     def test_db_write(self):
+        self.assertTrue(False)
+
+    def test_db_write_multiple_targets(self):
+        self.assertTrue(False)
+
+    def test_db_write_invalid_target(self):
         self.assertTrue(False)
 
 if __name__ == '__main__':

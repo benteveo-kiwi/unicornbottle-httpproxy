@@ -1,16 +1,17 @@
 from functools import partial
-from unicornbottle.rabbitmq import rabbitmq_connect
-from unicornbottle.database import database_connect
 from http_proxy import log
-from http_proxy.models import Request, Response
+from http_proxy.models import Request, Response, DatabaseWriteItem
 from io import BytesIO
 from mitmproxy.script import concurrent
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
+from unicornbottle.database import database_connect
+from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import logging
 import mitmproxy
 import pika
+import queue
 import sys
 import threading
 import time
@@ -29,7 +30,7 @@ class HTTPProxyClient(object):
     This function implements the RPC model in a thread-safe way.
     """
 
-    # Maximum time that we will wait for a `call`.
+    # Maximum time that we will wait for a `send_request` call.
     PROCESS_TIME_LIMIT = 15
 
     def __init__(self) -> None:
@@ -45,6 +46,7 @@ class HTTPProxyClient(object):
 
         self.corr_ids : Dict[str, bool] = {}
         self.responses : Dict[str, bytes] = {}
+        self.db_write_queue : queue.SimpleQueue = queue.SimpleQueue()
 
     def threads_start(self) -> None:
         """
@@ -195,6 +197,7 @@ class HTTPProxyClient(object):
                 attempt to reconnect so that next `call` is successful.
         """
         message_body = Request(request.get_state()).toJSON() # type:ignore
+        target_guid = request.headers['X-UB-GUID']
 
         if not self.threads_alive() or (self.rabbit_connection is None or self.channel is None):
             logger.error("One or more threads are dead. Attempting to restart and sending error to client.")
@@ -206,9 +209,26 @@ class HTTPProxyClient(object):
         basic_pub = partial(self.channel.basic_publish, exchange='', routing_key='rpc_queue',
             properties=pika.BasicProperties(reply_to=self.callback_queue, correlation_id=corr_id,),
             body=message_body)
-
         self.rabbit_connection.add_callback_threadsafe(basic_pub)
 
+        response = self.get_response(corr_id)
+
+        dwr = DatabaseWriteItem(target_guid, request, response, error=None)
+        self.db_write_queue.put(dwr)
+
+        return response
+
+    def get_response(self, corr_id:str) -> mitmproxy.net.http.Response:
+        """
+        This function reads from `self.responses[corr_id]` in a BLOCKING
+        fashion until either a response is populated by the queue reader or
+        `self.PROCESS_TIME_LIMIT` is exceeded.
+
+        `self.responses` is populated by `self.on_response()`.
+
+        Args:
+            corr_id: The correlation ID for this request.
+        """
         start = time.time()
         try:
             while True:
@@ -278,6 +298,10 @@ class HTTPProxyAddon(object):
     def _request(self, flow: mitmproxy.http.HTTPFlow) -> None:
         """
         Same as _request but without the wrapper to facilitate testing.
+
+        Args:
+            flow: the flow for this request. At this stage, flow.response is
+                not yet set, but will be set by this function.
         """
         try:
             time_start = time.time()
