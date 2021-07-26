@@ -25,6 +25,9 @@ class TimeoutException(Exception):
 class NotConnectedException(Exception):
     pass
 
+class UnauthorizedException(Exception):
+    pass
+
 class HTTPProxyClient(object):
     """
     This function implements the RPC model in a thread-safe way.
@@ -170,6 +173,43 @@ class HTTPProxyClient(object):
                 self.responses[props.correlation_id] = body
                 del self.corr_ids[props.correlation_id]
 
+    def target_guid_valid(self, val:str) -> bool:
+        """
+        Simple utility function to perform basic checks on the user-provided
+        UUID.
+
+        Args:
+            val: the value to check.
+
+        See:
+            https://stackoverflow.com/a/54254115
+        """
+        try:
+            uuid.UUID(str(val))
+            return True
+        except ValueError:
+            return False
+
+    def target_guid(self, request:mitmproxy.net.http.Request) -> str:
+        """
+        Obtain target guid from request.
+
+        Args:
+            request: the request to get the target_guid from.
+
+        Returns:
+            the target GUID.
+        """
+        exc = UnauthorizedException("Missing required authentication headers.")
+        try:
+            target_guid = request.headers['X-UB-GUID']
+            if not self.target_guid_valid(target_guid):
+                raise exc
+        except KeyError:
+            raise exc
+
+        return str(target_guid)
+
     def send_request(self, request : mitmproxy.net.http.Request, corr_id : str) -> mitmproxy.net.http.Response:
         """
         Serialize and send the request to RabbitMQ, receive the response and
@@ -195,26 +235,35 @@ class HTTPProxyClient(object):
             TimeoutException: self.PROCESS_TIME_LIMIT exceeded, request timeout.
             NotConnectedException: We're currently not connected to AMQ. Will
                 attempt to reconnect so that next `call` is successful.
+            UnauthorizedException: Missing or malformed X-UB-GUID header. This
+                serves as a form of precarious auth.
         """
-        message_body = Request(request.get_state()).toJSON() # type:ignore
-        target_guid = request.headers['X-UB-GUID']
+        target_guid = self.target_guid(request)
 
-        if not self.threads_alive() or (self.rabbit_connection is None or self.channel is None):
-            logger.error("One or more threads are dead. Attempting to restart and sending error to client.")
-            self.threads_start()
-            raise NotConnectedException("Not connected. Please retry in a jiffy.") # still raise. Clients must retry.
+        try:
+            if not self.threads_alive() or (self.rabbit_connection is None or self.channel is None):
+                logger.error("One or more threads are dead. Attempting to restart and sending error to client.")
+                self.threads_start()
+                raise NotConnectedException("Not connected. Please retry in a jiffy.") # still raise. Clients must retry.
 
-        self.corr_ids[corr_id] = True
+            self.corr_ids[corr_id] = True
 
-        basic_pub = partial(self.channel.basic_publish, exchange='', routing_key='rpc_queue',
-            properties=pika.BasicProperties(reply_to=self.callback_queue, correlation_id=corr_id,),
-            body=message_body)
-        self.rabbit_connection.add_callback_threadsafe(basic_pub)
+            message_body = Request(request.get_state()).toJSON() # type:ignore
+            basic_pub = partial(self.channel.basic_publish, exchange='', routing_key='rpc_queue',
+                properties=pika.BasicProperties(reply_to=self.callback_queue, correlation_id=corr_id,),
+                body=message_body)
+            self.rabbit_connection.add_callback_threadsafe(basic_pub)
 
-        response = self.get_response(corr_id)
+            response = self.get_response(corr_id)
+        except Exception as e:
+            # Couldn't successfully retrieve a response for this request. Still write to DB.
+            dwr = DatabaseWriteItem(target_guid, request, response=None, exception=e)
+            self.db_write_queue.put(dwr)
 
-        dwr = DatabaseWriteItem(target_guid, request, response, error=None)
-        self.db_write_queue.put(dwr)
+            raise
+        else:
+            dwr = DatabaseWriteItem(target_guid, request, response, exception=None)
+            self.db_write_queue.put(dwr)
 
         return response
 
@@ -314,6 +363,6 @@ class HTTPProxyAddon(object):
             logger.debug("%s:Done handling request. Total time %s seconds" % (corr_id, time.time() - time_start))
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
-            flow.response = mitmproxy.http.HTTPResponse.make(502, b"HTTP Proxy unhandled exception")
+            flow.response = mitmproxy.http.HTTPResponse.make(502, b"502 Exception")
 
 

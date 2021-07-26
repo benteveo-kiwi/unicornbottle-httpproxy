@@ -111,7 +111,7 @@ class DatabaseWriteItem():
     and the `thread_postgres` thread.
     """
     def __init__(self, target_guid:str, request:mitmproxy.net.http.Request,
-            response:Optional[mitmproxy.net.http.Response], error:Optional[Exception]) -> None:
+            response:Optional[mitmproxy.net.http.Response], exception:Optional[Exception]) -> None:
         """
         Default constructor.
 
@@ -120,11 +120,11 @@ class DatabaseWriteItem():
             request: the `Request` associated with this entry.
             response: the response. May be null if an error occurred that
                 prevented the retrieval of the response, such as a timeout.
-            error: the exception associated with this failure. May be None if
+            exception: the exception associated with this failure. May be None if
                 there were no errors
         """
         self.target_guid = target_guid
         self.request = request
         self.response = response
-        self.error = error
+        self.exception = exception
 

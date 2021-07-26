@@ -1,5 +1,5 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
-from http_proxy.rpc_client import TimeoutException
+from http_proxy.rpc_client import TimeoutException, UnauthorizedException
 from tests.test_base import TestBase
 from unittest.mock import MagicMock, patch
 import base64
@@ -123,6 +123,7 @@ class TestRPCClient(TestBase):
     def test_queue_write_success(self):
         hpc = self._hpcWithMockedConn() 
         hpc.db_write_queue = MagicMock()
+        hpc.get_response = MagicMock()
 
         corr_id = uuid.uuid4()
         body = self._req().toMITM()
@@ -130,6 +131,10 @@ class TestRPCClient(TestBase):
         ret = hpc.send_request(body, corr_id)
 
         self.assertEqual(hpc.db_write_queue.put.call_count, 1)
+
+        dwi = hpc.db_write_queue.put.call_args[0][0]
+        self.assertEqual(dwi.exception, None)
+        self.assertEqual(dwi.response, hpc.get_response.return_value)
 
     def test_queue_no_write_if_no_target(self):
         hpc = self._hpcWithMockedConn() 
@@ -144,15 +149,74 @@ class TestRPCClient(TestBase):
 
         body = req.toMITM()
         hpc.responses[corr_id] = self._resp().toJSON()
-        ret = hpc.send_request(body, corr_id)
+        with self.assertRaises(UnauthorizedException):
+            hpc.send_request(body, corr_id)
 
-        self.assertEqual(hpc.db_write_queue.put.call_count, 1)
+        self.assertEqual(hpc.db_write_queue.put.call_count, 0)
+
+    def test_queue_no_write_if_malformed(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.db_write_queue = MagicMock()
+
+        corr_id = uuid.uuid4()
+        req = self._req()
+        req.state['headers'] = (
+            (b"User-Agent", b"Wget/1.21"),
+            (b"Host", b"www.testing.local"),
+            (b"X-UB-GUID", b"Is this a valid GUID? I shouldn't think so!"),
+        )
+
+        body = req.toMITM()
+        hpc.responses[corr_id] = self._resp().toJSON()
+        with self.assertRaises(UnauthorizedException):
+            hpc.send_request(body, corr_id)
+
+        self.assertEqual(hpc.db_write_queue.put.call_count, 0)
 
     def test_queue_write_timeout(self):
-        self.assertTrue(False)
+        hpc = self._hpcWithMockedConn() 
+        hpc.db_write_queue = MagicMock()
+        exc = TimeoutException()
+        hpc.get_response = MagicMock(side_effect=exc)
+
+        corr_id = uuid.uuid4()
+        body = self._req().toMITM()
+        hpc.responses[corr_id] = self._resp().toJSON()
+
+        with self.assertRaises(TimeoutException):
+            ret = hpc.send_request(body, corr_id)
+
+        # Should still write even if there has been an exception
+        self.assertEqual(hpc.db_write_queue.put.call_count, 1)
+
+        dwi = hpc.db_write_queue.put.call_args[0][0]
+        self.assertEqual(dwi.exception, exc)
+        self.assertEqual(dwi.response, None)
 
     def test_queue_write_otherexception(self):
-        self.assertTrue(False)
+        hpc = self._hpcWithMockedConn() 
+        hpc.db_write_queue = MagicMock()
+        hpc.rabbit_connection = MagicMock()
+
+        class WhateverException(Exception):
+            pass
+
+        exc = WhateverException("Oops.")
+        hpc.rabbit_connection.add_callback_threadsafe.side_effect = exc
+
+        corr_id = uuid.uuid4()
+        body = self._req().toMITM()
+        hpc.responses[corr_id] = self._resp().toJSON()
+
+        with self.assertRaises(WhateverException):
+            ret = hpc.send_request(body, corr_id)
+
+        # Should still write even if there has been an exception
+        self.assertEqual(hpc.db_write_queue.put.call_count, 1)
+
+        dwi = hpc.db_write_queue.put.call_args[0][0]
+        self.assertEqual(dwi.exception, exc)
+        self.assertEqual(dwi.response, None)
 
     def test_db_write(self):
         self.assertTrue(False)
