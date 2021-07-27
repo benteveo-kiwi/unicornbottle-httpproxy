@@ -2,6 +2,7 @@ from http_proxy.models import Response, Request
 from http_proxy.rpc_client import HTTPProxyClient, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException
 from http_proxy.rpc_server import RPCServer
+from unicornbottle.database import DatabaseWriteItem
 from unittest.mock import MagicMock
 import mitmproxy
 import pika
@@ -117,3 +118,9 @@ OK"""
         hpc.threads_alive = MagicMock(return_value=True)
 
         return hpc
+
+    def _dwi(self):
+        dwi = DatabaseWriteItem(self.TEST_GUID, self._req(), self._resp(), None)
+
+        return dwi
+

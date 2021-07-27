@@ -1,6 +1,7 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException, UnauthorizedException
 from tests.test_base import TestBase
+from unicornbottle.database import DatabaseWriteItem
 from unittest.mock import MagicMock, patch
 import base64
 import json
@@ -218,8 +219,65 @@ class TestRPCClient(TestBase):
         self.assertEqual(dwi.exception, exc)
         self.assertEqual(dwi.response, None)
 
+    def test_db_write_empty_queue(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
+        hpc.thread_postgres_read_queue()
+
+        self.assertEqual(hpc.thread_postgres_write.call_count, 0)
+
     def test_db_write(self):
-        self.assertTrue(False)
+        hpc = self._hpcWithMockedConn() 
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
+
+        dwi = self._dwi()
+        hpc.db_write_queue.put(dwi)
+
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(hpc.thread_postgres_write.call_count, 1)
+        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
+
+    def test_db_write_10(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
+
+        dwi = self._dwi()
+        for _ in range(10):
+            hpc.db_write_queue.put(dwi)
+
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(hpc.thread_postgres_write.call_count, 1)
+        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
+        self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 10)
+    
+    def test_db_write_100(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
+
+        dwi = self._dwi()
+        for _ in range(100):
+            hpc.db_write_queue.put(dwi)
+
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(hpc.thread_postgres_write.call_count, 1)
+        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
+        self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 100)
+
+    def test_db_write_105(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
+
+        dwi = self._dwi()
+        for _ in range(105):
+            hpc.db_write_queue.put(dwi)
+
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(hpc.thread_postgres_write.call_count, 1)
+        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
+        self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 100)
+
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 5)
 
     def test_db_write_multiple_targets(self):
         self.assertTrue(False)

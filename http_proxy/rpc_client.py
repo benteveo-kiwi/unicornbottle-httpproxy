@@ -1,11 +1,11 @@
 from functools import partial
 from http_proxy import log
-from http_proxy.models import Request, Response, DatabaseWriteItem
+from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
-from unicornbottle.database import database_connect
+from unicornbottle.database import DatabaseWriteItem, database_connect
 from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import logging
@@ -35,6 +35,10 @@ class HTTPProxyClient(object):
 
     # Maximum time that we will wait for a `send_request` call.
     PROCESS_TIME_LIMIT = 15
+
+    # Maximum amount of items that will be fetched from the queue prior to
+    # writing.
+    MAX_BULK_WRITE = 100
 
     def __init__(self) -> None:
         """
@@ -104,9 +108,34 @@ class HTTPProxyClient(object):
 
         return thread
 
+    def thread_postgres_write(self, items_to_write:dict) -> None:
+        pass
+
+    def thread_postgres_read_queue(self) -> None:
+        """
+        This function gets called periodically by `self.thread_postgres`.
+        Handles a single iteration of reading from the queue.
+        """
+        items_to_write = {}
+        items_read = 0
+        try:
+            while items_read < self.MAX_BULK_WRITE:
+                dwi = self.db_write_queue.get_nowait()
+                if dwi.target_guid not in items_to_write:
+                    items_to_write[dwi.target_guid] = []
+
+                items_to_write[dwi.target_guid].append(dwi)
+                items_read += 1
+        except queue.Empty:
+            pass
+
+        if items_read > 0:
+            self.thread_postgres_write(items_to_write)
+
     def thread_postgres(self) -> None:
         """
-        Manages the connections to PostgreSQL and regular insertion of rows.
+        Main thread for connections to PostgreSQL and regular insertion of
+        rows.
 
         A queue of request/responses pending writes, located at
         `self.db_write_queue`, is regularly popped in this function.
@@ -118,7 +147,9 @@ class HTTPProxyClient(object):
         """
         try:
             while True:
-                time.sleep(1)
+                self.thread_postgres_read_queue()
+
+                time.sleep(0.05)
         except:
             logger.exception("Exception in PostgreSQL thread")
         finally:
