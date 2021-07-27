@@ -3,9 +3,11 @@ from http_proxy import log
 from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
+from sqlalchemy.orm.session import Session
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
-from unicornbottle.database import DatabaseWriteItem, database_connect
+from unicornbottle.database import DatabaseWriteItem, RequestResponse, InvalidSchemaException
+from unicornbottle.database import database_connect
 from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import logging
@@ -54,6 +56,7 @@ class HTTPProxyClient(object):
         self.corr_ids : Dict[str, bool] = {}
         self.responses : Dict[str, bytes] = {}
         self.db_write_queue : queue.SimpleQueue = queue.SimpleQueue()
+        self.db_connections : dict[str, Session] = {}
 
     def threads_start(self) -> None:
         """
@@ -108,15 +111,30 @@ class HTTPProxyClient(object):
 
         return thread
 
-    def thread_postgres_write(self, items_to_write:dict) -> None:
-        pass
+    def thread_postgres_write(self, items_to_write:dict[str, list[RequestResponse]]) -> None:
+        """
+        Called when data is successfully read from the queue.
+
+        Args:
+            items_to_write: a dictionary containing lists of RequestResponses
+                grouped by target_guids.
+        """
+        for target_guid in items_to_write:
+            if target_guid not in self.db_connections:
+                try:
+                    self.db_connections[target_guid] = database_connect(target_guid, create=False)
+                except InvalidSchemaException:
+                    logger.error("Invalid schema %s in header." % target_guid)
+                    continue
+
+                self.db_connections[target_guid].add_all(items_to_write[target_guid])
 
     def thread_postgres_read_queue(self) -> None:
         """
         This function gets called periodically by `self.thread_postgres`.
         Handles a single iteration of reading from the queue.
         """
-        items_to_write = {}
+        items_to_write : Dict[str, list[RequestResponse]] = {}
         items_read = 0
         try:
             while items_read < self.MAX_BULK_WRITE:
@@ -124,7 +142,7 @@ class HTTPProxyClient(object):
                 if dwi.target_guid not in items_to_write:
                     items_to_write[dwi.target_guid] = []
 
-                items_to_write[dwi.target_guid].append(dwi)
+                items_to_write[dwi.target_guid].append(RequestResponse.createFromDWI(dwi))
                 items_read += 1
         except queue.Empty:
             pass

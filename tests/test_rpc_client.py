@@ -219,14 +219,14 @@ class TestRPCClient(TestBase):
         self.assertEqual(dwi.exception, exc)
         self.assertEqual(dwi.response, None)
 
-    def test_db_write_empty_queue(self):
+    def test_queue_read_empty_queue(self):
         hpc = self._hpcWithMockedConn() 
         hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
         hpc.thread_postgres_read_queue()
 
         self.assertEqual(hpc.thread_postgres_write.call_count, 0)
 
-    def test_db_write(self):
+    def test_queue_read(self):
         hpc = self._hpcWithMockedConn() 
         hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
 
@@ -235,9 +235,8 @@ class TestRPCClient(TestBase):
 
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
-        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
 
-    def test_db_write_10(self):
+    def test_queue_read_10(self):
         hpc = self._hpcWithMockedConn() 
         hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
 
@@ -247,10 +246,9 @@ class TestRPCClient(TestBase):
 
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
-        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
         self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 10)
     
-    def test_db_write_100(self):
+    def test_queue_read_100(self):
         hpc = self._hpcWithMockedConn() 
         hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
 
@@ -260,10 +258,9 @@ class TestRPCClient(TestBase):
 
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
-        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
         self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 100)
 
-    def test_db_write_105(self):
+    def test_queue_read_105(self):
         hpc = self._hpcWithMockedConn() 
         hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
 
@@ -273,11 +270,13 @@ class TestRPCClient(TestBase):
 
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
-        self.assertEqual(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid][0], dwi)
         self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 100)
 
         hpc.thread_postgres_read_queue()
         self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 5)
+
+    def test_db_write(self):
+        self.assertTrue(False)
 
     def test_db_write_multiple_targets(self):
         self.assertTrue(False)
