@@ -123,14 +123,13 @@ class HTTPProxyClient(object):
         for target_guid in items_to_write:
             if target_guid not in self.db_connections:
 
-                logger.debug("Trying to coonect to schema %s" % target_guid)
                 try:
                     self.db_connections[target_guid] = database_connect(target_guid, create=False)
                 except InvalidSchemaException:
                     logger.error("Invalid schema %s in header." % target_guid)
                     continue
 
-                logger.debug("Adding all on %s items" % target_guid)
+                logger.debug("Adding %s items for schema %s" % (target_guid, len(items_to_write[target_guid])))
 
                 self.db_connections[target_guid].add_all(items_to_write[target_guid])
                 self.db_connections[target_guid].commit()
@@ -169,6 +168,7 @@ class HTTPProxyClient(object):
         speed times. One connection per database schema is maintained, for more
         information see `unicornbottle.database`.
         """
+        logger.info("PostgreSQL thread starting")
         try:
             while True:
                 self.thread_postgres_read_queue()
@@ -178,6 +178,10 @@ class HTTPProxyClient(object):
             logger.exception("Exception in PostgreSQL thread")
         finally:
             logger.error("PostgreSQL thread is shutting down. See log for details.")
+            for conn in self.db_connections:
+                self.db_connections[conn].close()
+
+            self.db_connections = {}
 
     def thread_rabbit(self) -> None:
         """
@@ -196,7 +200,7 @@ class HTTPProxyClient(object):
                 on_message_callback=self.on_response,
                 auto_ack=True)
 
-            logger.info("Thread ready to start consuming")
+            logger.info("RabbitMQ thread ready to start consuming")
             self.channel.start_consuming() 
         except:
             logger.exception("Exception in RabbitMQ thread")
