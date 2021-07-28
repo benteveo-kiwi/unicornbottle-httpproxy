@@ -90,7 +90,6 @@ class MessageSerializer():
         state = json.loads(json_str, cls=RequestDecoder)
         return cls(state)
 
-
 class Request(MessageSerializer):
     def toMITM(self) -> mitmproxy.net.http.Request:
         """

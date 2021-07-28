@@ -1,7 +1,7 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException, UnauthorizedException
 from tests.test_base import TestBase
-from unicornbottle.database import DatabaseWriteItem
+from unicornbottle.database import DatabaseWriteItem, RequestResponse
 from unittest.mock import MagicMock, patch
 import base64
 import json
@@ -236,6 +236,12 @@ class TestRPCClient(TestBase):
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
 
+        req_resp = hpc.thread_postgres_write.call_args.args[0][self.TEST_GUID][0]
+
+        self.assertEqual(type(req_resp), RequestResponse)
+        self.assertEqual(req_resp.method, "GET")
+        self.assertEqual(req_resp.path, "/testpath")
+
     def test_queue_read_10(self):
         hpc = self._hpcWithMockedConn() 
         hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
@@ -276,7 +282,21 @@ class TestRPCClient(TestBase):
         self.assertEqual(len(hpc.thread_postgres_write.call_args.args[0][dwi.target_guid]), 5)
 
     def test_db_write(self):
-        self.assertTrue(False)
+        hpc = self._hpcWithMockedConn() 
+
+        write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
+
+        with patch('http_proxy.rpc_client.database_connect') as dc:
+            hpc.thread_postgres_write(write)
+
+            self.assertEqual(dc.call_count, 1)
+            self.assertEqual(dc.return_value.add_all.call_count, 1)
+
+            req_resp = dc.return_value.add_all.call_args.args[0][0]
+
+            self.assertEqual(type(req_resp), RequestResponse)
+            self.assertEqual(req_resp.method, "GET")
+            self.assertEqual(req_resp.path, "/testpath")
 
     def test_db_write_multiple_targets(self):
         self.assertTrue(False)

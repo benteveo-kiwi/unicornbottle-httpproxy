@@ -41,7 +41,7 @@ OK"""
         "method": b"GET",
         "scheme": b"http",
         "authority": b"",
-        "path": b"/",
+        "path": b"/testpath",
     }
 
     EXAMPLE_RESP = {
@@ -120,7 +120,8 @@ OK"""
         return hpc
 
     def _dwi(self):
-        dwi = DatabaseWriteItem(self.TEST_GUID, self._req(), self._resp(), None)
+        dwi = DatabaseWriteItem(self.TEST_GUID, self._req().toMITM(),
+                self._resp().toMITM(), None)
 
         return dwi
 
