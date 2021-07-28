@@ -119,15 +119,21 @@ class HTTPProxyClient(object):
             items_to_write: a dictionary containing lists of RequestResponses
                 grouped by target_guids.
         """
+        logger.debug("Writing requests to database.")
         for target_guid in items_to_write:
             if target_guid not in self.db_connections:
+
+                logger.debug("Trying to coonect to schema %s" % target_guid)
                 try:
                     self.db_connections[target_guid] = database_connect(target_guid, create=False)
                 except InvalidSchemaException:
                     logger.error("Invalid schema %s in header." % target_guid)
                     continue
 
+                logger.debug("Adding all on %s items" % target_guid)
+
                 self.db_connections[target_guid].add_all(items_to_write[target_guid])
+                self.db_connections[target_guid].commit()
 
     def thread_postgres_read_queue(self) -> None:
         """
