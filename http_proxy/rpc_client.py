@@ -119,20 +119,18 @@ class HTTPProxyClient(object):
             items_to_write: a dictionary containing lists of RequestResponses
                 grouped by target_guids.
         """
-        logger.debug("Writing requests to database.")
         for target_guid in items_to_write:
             if target_guid not in self.db_connections:
-
                 try:
                     self.db_connections[target_guid] = database_connect(target_guid, create=False)
                 except InvalidSchemaException:
                     logger.error("Invalid schema %s in header." % target_guid)
                     continue
 
-                logger.debug("Adding %s items for schema %s" % (target_guid, len(items_to_write[target_guid])))
+            logger.debug("Adding %s items for schema %s" % (len(items_to_write[target_guid]), target_guid))
 
-                self.db_connections[target_guid].add_all(items_to_write[target_guid])
-                self.db_connections[target_guid].commit()
+            self.db_connections[target_guid].add_all(items_to_write[target_guid])
+            self.db_connections[target_guid].commit()
 
     def thread_postgres_read_queue(self) -> None:
         """
@@ -153,6 +151,7 @@ class HTTPProxyClient(object):
             pass
 
         if items_read > 0:
+            logger.debug("Writing %s requests to database." % items_read)
             self.thread_postgres_write(items_to_write)
 
     def thread_postgres(self) -> None:
@@ -176,6 +175,7 @@ class HTTPProxyClient(object):
                 time.sleep(0.05)
         except:
             logger.exception("Exception in PostgreSQL thread")
+            raise
         finally:
             logger.error("PostgreSQL thread is shutting down. See log for details.")
             for conn in self.db_connections:
@@ -204,6 +204,7 @@ class HTTPProxyClient(object):
             self.channel.start_consuming() 
         except:
             logger.exception("Exception in RabbitMQ thread")
+            raise
         finally:
             logger.error("RabbitMQ thread is shutting down. See log above for details.")
             if self.rabbit_connection:
