@@ -1,2 +1,2 @@
 
-from unicornbottle.database import Request, Response
+from unicornbottle.models import Request, Response

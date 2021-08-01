@@ -6,8 +6,8 @@ from mitmproxy.script import concurrent
 from sqlalchemy.orm.session import Session
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
-from unicornbottle.database import DatabaseWriteItem, RequestResponse, InvalidSchemaException
-from unicornbottle.database import database_connect
+from unicornbottle.database import database_connect, InvalidSchemaException
+from unicornbottle.models import DatabaseWriteItem, RequestResponse
 from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import logging

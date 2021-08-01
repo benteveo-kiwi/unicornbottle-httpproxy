@@ -1,7 +1,7 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException, UnauthorizedException
 from tests.test_base import TestBase
-from unicornbottle.database import DatabaseWriteItem, RequestResponse
+from unicornbottle.models import DatabaseWriteItem, RequestResponse
 from unittest.mock import MagicMock, patch
 import base64
 import json

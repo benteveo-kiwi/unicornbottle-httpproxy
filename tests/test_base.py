@@ -2,7 +2,7 @@ from http_proxy.models import Response, Request
 from http_proxy.rpc_client import HTTPProxyClient, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException
 from http_proxy.rpc_server import RPCServer
-from unicornbottle.database import DatabaseWriteItem
+from unicornbottle.models import DatabaseWriteItem
 from unittest.mock import MagicMock
 import mitmproxy
 import pika
