@@ -45,7 +45,7 @@ def configure_logging(type : Type, id : int = -1) -> None:
         log_folder = PROXY_LOG_FOLDER
         filename = "%s/%s" % (log_folder, "ub-httpproxy.log")
     
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s",
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s]: %(message)s",
         handlers=[logging.FileHandler(filename),logging.StreamHandler()])
 
     logging.getLogger("pika").setLevel(logging.WARNING)

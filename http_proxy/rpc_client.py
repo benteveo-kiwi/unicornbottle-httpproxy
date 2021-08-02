@@ -50,13 +50,14 @@ class HTTPProxyClient(object):
         instantiator immediately after construction.
         """
         self.lock = threading.Lock()
+        self.threads : Dict[Callable, threading.Thread] = {}
+        self.shutting_down : bool = False
 
         self.rabbit_connection : Optional[pika.BlockingConnection] = None
         self.channel : Optional[pika.adapters.blocking_connection.BlockingChannel] = None
-        self.threads : Dict[Callable, threading.Thread] = {}
-
         self.corr_ids : Dict[str, bool] = {}
         self.responses : Dict[str, bytes] = {}
+        
         self.db_write_queue : queue.SimpleQueue = queue.SimpleQueue()
         self.db_connections : dict[str, Session] = {}
 
@@ -72,6 +73,9 @@ class HTTPProxyClient(object):
         - PostgreSQL writer thread.
         """
         req_targets = [self.thread_rabbit, self.thread_postgres]
+
+        if self.shutting_down:
+            return
         
         for target in req_targets:
             if target in self.threads and self.threads[target].is_alive():
@@ -144,7 +148,6 @@ class HTTPProxyClient(object):
                     conn.add(em)
                     conn.commit()
 
-                print(req_res.id, req_res.pretty_url, req_res.metadata_id, em)
                 req_res.metadata_id = em.id
 
                 conn.add(req_res)
@@ -179,7 +182,8 @@ class HTTPProxyClient(object):
         rows.
 
         A queue of request/responses pending writes, located at
-        `self.db_write_queue`, is regularly popped in this function.
+        `self.db_write_queue`, is regularly popped in this function. It
+        monitors `self.shutting_down`, if set to true dies.
 
         The general idea is that writes are handled outside of the mitmdump
         thread so that database writes do not influence the proxy's response
@@ -189,6 +193,9 @@ class HTTPProxyClient(object):
         logger.info("PostgreSQL thread starting")
         try:
             while True:
+                if self.shutting_down:
+                    break
+
                 self.thread_postgres_read_queue()
 
                 time.sleep(0.05)
@@ -369,7 +376,7 @@ class HTTPProxyClient(object):
 
                 timeout = time.time() - start >= self.PROCESS_TIME_LIMIT
 
-                if not resp and timeout:
+                if (not resp and timeout) or self.shutting_down:
                     raise TimeoutException
                 elif resp:
                     return Response.fromJSON(self.responses[corr_id]).toMITM()
@@ -404,10 +411,12 @@ class HTTPProxyAddon(object):
         """
         Called when mitmproxy exits.
         """
-        logger.info("Exiting cleanly. Attempting to stop consuming queues.")
-
+        logger.error("EXITING CLEANLY due to Ctrl-C. Attempting to stop consuming queues.")
         if self.client.rabbit_connection is not None and self.client.channel is not None:
             self.client.rabbit_connection.add_callback_threadsafe(self.client.channel.stop_consuming)
+
+        logger.info("Shutting down Postgres thread.")
+        self.client.shutting_down = True
 
         logger.info("Exited.")
 
