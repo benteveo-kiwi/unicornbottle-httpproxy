@@ -301,12 +301,6 @@ class TestRPCClient(TestBase):
             self.assertEqual(req_resp.method, "GET")
             self.assertEqual(req_resp.path, "/testpath")
 
-    def test_db_write_multiple_targets(self):
-        self.assertTrue(False)
-
-    def test_db_write_invalid_target(self):
-        self.assertTrue(False)
-
 if __name__ == '__main__':
     unittest.main()
 

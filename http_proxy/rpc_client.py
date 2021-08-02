@@ -3,11 +3,12 @@ from http_proxy import log
 from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
+from sqlalchemy import select, and_
 from sqlalchemy.orm.session import Session
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
 from unicornbottle.database import database_connect, InvalidSchemaException
-from unicornbottle.models import DatabaseWriteItem, RequestResponse, ExceptionSerializer
+from unicornbottle.models import DatabaseWriteItem, RequestResponse, ExceptionSerializer, EndpointMetadata
 from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import logging
@@ -130,8 +131,25 @@ class HTTPProxyClient(object):
 
             logger.debug("Adding %s items for schema %s" % (len(items_to_write[target_guid]), target_guid))
 
-            self.db_connections[target_guid].add_all(items_to_write[target_guid])
-            self.db_connections[target_guid].commit()
+            conn = self.db_connections[target_guid]
+
+            for req_res in items_to_write[target_guid]:
+                stmt = select(EndpointMetadata).where(and_(EndpointMetadata.pretty_url == req_res.pretty_url, # type:ignore 
+                    EndpointMetadata.method == req_res.method))
+
+                em = conn.execute(stmt).scalar()
+
+                if em is None:
+                    em = EndpointMetadata(pretty_url=req_res.pretty_url, method=req_res.method)
+                    conn.add(em)
+                    conn.commit()
+
+                print(req_res.id, req_res.pretty_url, req_res.metadata_id, em)
+                req_res.metadata_id = em.id
+
+                conn.add(req_res)
+
+            conn.commit()
 
     def thread_postgres_read_queue(self) -> None:
         """
