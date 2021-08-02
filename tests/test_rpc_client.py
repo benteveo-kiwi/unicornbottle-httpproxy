@@ -177,7 +177,8 @@ class TestRPCClient(TestBase):
     def test_queue_write_timeout(self):
         hpc = self._hpcWithMockedConn() 
         hpc.db_write_queue = MagicMock()
-        exc = TimeoutException()
+        exc_message = "Message"
+        exc = TimeoutException(exc_message)
         hpc.get_response = MagicMock(side_effect=exc)
 
         corr_id = uuid.uuid4()
@@ -191,7 +192,8 @@ class TestRPCClient(TestBase):
         self.assertEqual(hpc.db_write_queue.put.call_count, 1)
 
         dwi = hpc.db_write_queue.put.call_args[0][0]
-        self.assertEqual(dwi.exception, exc)
+        self.assertEqual(dwi.exception.state['type'], "TimeoutException")
+        self.assertEqual(dwi.exception.state['value'], exc_message)
         self.assertEqual(dwi.response, None)
 
     def test_queue_write_otherexception(self):
@@ -216,7 +218,8 @@ class TestRPCClient(TestBase):
         self.assertEqual(hpc.db_write_queue.put.call_count, 1)
 
         dwi = hpc.db_write_queue.put.call_args[0][0]
-        self.assertEqual(dwi.exception, exc)
+        self.assertEqual(dwi.exception.state['type'], "WhateverException")
+        self.assertEqual(dwi.exception.state['value'], "Oops.")
         self.assertEqual(dwi.response, None)
 
     def test_queue_read_empty_queue(self):

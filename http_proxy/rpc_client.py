@@ -7,7 +7,7 @@ from sqlalchemy.orm.session import Session
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
 from unicornbottle.database import database_connect, InvalidSchemaException
-from unicornbottle.models import DatabaseWriteItem, RequestResponse
+from unicornbottle.models import DatabaseWriteItem, RequestResponse, ExceptionSerializer
 from unicornbottle.rabbitmq import rabbitmq_connect
 import base64
 import logging
@@ -17,6 +17,7 @@ import queue
 import sys
 import threading
 import time
+import traceback
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -317,7 +318,8 @@ class HTTPProxyClient(object):
             response = self.get_response(corr_id)
         except Exception as e:
             # Couldn't successfully retrieve a response for this request. Still write to DB.
-            dwr = DatabaseWriteItem(target_guid, request, response=None, exception=e)
+            exc_info = ExceptionSerializer(type(e).__name__, str(e), traceback.format_exc())
+            dwr = DatabaseWriteItem(target_guid, request, response=None, exception=exc_info)
             self.db_write_queue.put(dwr)
 
             raise
