@@ -1,1 +1,1 @@
-mypy -p http_proxy -p rpc_addon -p rpc_server
+mypy . --exclude tests
