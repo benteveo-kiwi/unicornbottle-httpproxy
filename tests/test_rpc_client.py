@@ -1,5 +1,6 @@
 from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
 from http_proxy.rpc_client import TimeoutException, UnauthorizedException
+from sqlalchemy import exc
 from tests.test_base import TestBase
 from unicornbottle.models import DatabaseWriteItem, RequestResponse
 from unittest.mock import MagicMock, patch
@@ -301,6 +302,17 @@ class TestRPCClient(TestBase):
             self.assertEqual(type(req_resp), RequestResponse)
             self.assertEqual(req_resp.method, "GET")
             self.assertEqual(req_resp.path, "/testpath")
+    
+    def test_queue_read_handle_write_exception(self):
+        hpc = self._hpcWithMockedConn() 
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write, side_effect=exc.SQLAlchemyError)
+
+        dwi = self._dwi()
+        for _ in range(105):
+            hpc.db_write_queue.put(dwi)
+
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(hpc.thread_postgres_write.call_count, 1)
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,7 +3,7 @@ from http_proxy import log
 from http_proxy.models import Request, Response
 from io import BytesIO
 from mitmproxy.script import concurrent
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, exc
 from sqlalchemy.orm.session import Session
 from threading import Event, Thread
 from typing import Dict, Optional, Any, Callable
@@ -175,7 +175,11 @@ class HTTPProxyClient(object):
 
         if items_read > 0:
             logger.debug("Writing %s requests to database." % items_read)
-            self.thread_postgres_write(items_to_write)
+
+            try:
+                self.thread_postgres_write(items_to_write)
+            except exc.SQLAlchemyError:
+                logger.exception("Unhandled SQL error while writing to DB:")
 
     def thread_postgres(self) -> None:
         """
