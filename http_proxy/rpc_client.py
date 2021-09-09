@@ -119,7 +119,8 @@ class HTTPProxyClient(object):
 
     def thread_postgres_write(self, items_to_write:dict[str, list[RequestResponse]]) -> None:
         """
-        Called when data is successfully read from the queue.
+        Called when data is successfully read from the queue. Handles database
+        writes.
 
         Args:
             items_to_write: a dictionary containing lists of RequestResponses

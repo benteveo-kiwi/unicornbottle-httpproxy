@@ -293,9 +293,10 @@ class TestRPCClient(TestBase):
             hpc.thread_postgres_write(write)
 
             self.assertEqual(dc.call_count, 1)
-            self.assertEqual(dc.return_value.add_all.call_count, 1)
+            self.assertEqual(dc.return_value.add.call_count, 1)
 
-            req_resp = dc.return_value.add_all.call_args.args[0][0]
+            req_resp = dc.return_value.add.call_args.args[0]
+            self.assertEqual(req_resp.metadata_id, dc().execute().scalar.return_value.id)
 
             self.assertEqual(type(req_resp), RequestResponse)
             self.assertEqual(req_resp.method, "GET")
