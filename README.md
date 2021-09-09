@@ -32,13 +32,13 @@ proxy to support HTTP2 in any case so it shoud work OK.
 # Run unit tests:
 
 ```
-python3 -m unittest tests/test*
+pytest
 ```
 
 To run an individual test:
 
 ```
-python3 -m unittest tests.test_rpc_server.TestRPCServer.test_whatever
+pytest -s -k "test_db_write"
 ```
 
 # Type Checking

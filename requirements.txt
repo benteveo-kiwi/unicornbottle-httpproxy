@@ -1,3 +1,4 @@
 pika
 pika-stubs
 mitmproxy==6.0.2
+pytest
