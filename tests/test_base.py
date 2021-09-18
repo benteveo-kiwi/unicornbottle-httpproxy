@@ -1,6 +1,6 @@
 from http_proxy.models import Response, Request
-from http_proxy.rpc_client import HTTPProxyClient, HTTPProxyAddon
-from http_proxy.rpc_client import TimeoutException
+from http_proxy.rpc_client import HTTPProxyAddon
+from unicornbottle.proxy import HTTPProxyClient, TimeoutException
 from http_proxy.rpc_server import RPCServer
 from unicornbottle.models import DatabaseWriteItem
 from unittest.mock import MagicMock

@@ -1,5 +1,6 @@
-from http_proxy.rpc_client import HTTPProxyAddon, HTTPProxyClient
 from http_proxy.log import Type, configure_logging
+from http_proxy.rpc_client import HTTPProxyAddon
+from unicornbottle.proxy import HTTPProxyClient
 
 configure_logging(Type.PROXY)
 

@@ -1,8 +1,9 @@
-from http_proxy.rpc_client import HTTPProxyClient, Request, HTTPProxyAddon
-from http_proxy.rpc_client import TimeoutException, UnauthorizedException
+from http_proxy.rpc_client import HTTPProxyAddon
 from sqlalchemy import exc
 from tests.test_base import TestBase
 from unicornbottle.models import DatabaseWriteItem, RequestResponse
+from unicornbottle.models import Request
+from unicornbottle.proxy import HTTPProxyClient, TimeoutException, UnauthorizedException
 from unittest.mock import MagicMock, patch
 import base64
 import json
@@ -31,7 +32,7 @@ class TestRPCClient(TestBase):
 
         self.assertEqual(hpc.responses[corr_id], nb_response)
 
-    @patch("http_proxy.rpc_client.partial", autospec=True)
+    @patch("unicornbottle.proxy.partial", autospec=True)
     def test_call(self, ftp):
         hpc = self._hpcWithMockedConn() 
 
@@ -290,7 +291,7 @@ class TestRPCClient(TestBase):
 
         write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
 
-        with patch('http_proxy.rpc_client.database_connect') as dc:
+        with patch('unicornbottle.proxy.database_connect') as dc:
             hpc.thread_postgres_write(write)
 
             self.assertEqual(dc.call_count, 1)
