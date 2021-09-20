@@ -23,14 +23,8 @@ class HTTPProxyAddon(object):
         """
         Called when mitmproxy exits.
         """
-        logger.error("EXITING CLEANLY due to Ctrl-C. Attempting to stop consuming queues.")
-        if self.client.rabbit_connection is not None and self.client.channel is not None:
-            self.client.rabbit_connection.add_callback_threadsafe(self.client.channel.stop_consuming)
-
-        logger.info("Shutting down Postgres thread.")
-        self.client.shutting_down = True
-
-        logger.info("Exited.")
+        logger.error("EXITING CLEANLY due to Ctrl-C.")
+        self.client.threads_shutdown()
 
     @concurrent # type: ignore
     def request(self, flow: mitmproxy.http.HTTPFlow) -> None:
