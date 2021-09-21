@@ -171,7 +171,8 @@ class RPCServer(object):
                 properties=my_props, body=response_body.encode('utf-8')) # type: ignore
 
 def listen() -> None:
-    started_once = False
+    channel = None
+    connection = None
     try:
         connection = rabbitmq_connect()
         channel = connection.channel()
@@ -182,10 +183,7 @@ def listen() -> None:
         channel.basic_qos(prefetch_count=1)
         channel.basic_consume(queue='rpc_queue', on_message_callback=rpc_server.on_request, auto_ack=True)
 
-        verb = "started" if started_once == False else "restarted"
-
-        logger.info("HTTP Server consumer %s successfully. Listening for messages." % verb)
-        started_once = True
+        logger.info("HTTP Server consumer started successfully. Listening for messages.")
 
         channel.start_consuming()
 
@@ -195,6 +193,9 @@ def listen() -> None:
         logger.exception("Unhandled exception in server thread.", exc_info=True)
         raise
     finally:
-        channel.stop_consuming()
-        connection.close()
+        if channel:
+            channel.stop_consuming()
+
+        if connection:
+            connection.close()
 
