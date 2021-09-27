@@ -109,8 +109,8 @@ OK"""
         
         return flow
 
-    def _hpcWithMockedConn(self):
-        hpc = HTTPProxyClient()
+    def _hpcWithMockedConn(self, is_fuzzer=False):
+        hpc = HTTPProxyClient(is_fuzzer)
         hpc.rabbit_connection = self._mockConnection()
         hpc.channel = self._mockChannel()
         hpc.callback_queue = self._mockQueue()

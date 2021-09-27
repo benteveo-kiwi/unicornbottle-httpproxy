@@ -315,6 +315,48 @@ class TestRPCClient(TestBase):
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
 
+    def test_fuzzer_flag_set_in_db(self):
+        hpc = self._hpcWithMockedConn(is_fuzzer=True) 
+
+        write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
+
+        with patch('unicornbottle.proxy.database_connect') as dc:
+            hpc.thread_postgres_write(write)
+
+            self.assertEqual(dc.call_count, 1)
+            self.assertEqual(dc.return_value.add.call_count, 1)
+
+            req_resp = dc.return_value.add.call_args.args[0]
+            self.assertEqual(req_resp.metadata_id, dc().execute().scalar.return_value.id)
+
+            assert req_resp.sent_by_fuzzer == True
+
+    def test_fuzzer_skips_em_creation(self):
+        hpc = self._hpcWithMockedConn(is_fuzzer=True) 
+
+        write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
+
+        with patch('unicornbottle.proxy.database_connect') as dc:
+            dc.return_value.execute.return_value.scalar.return_value = None
+
+            hpc.thread_postgres_write(write)
+
+            self.assertEqual(dc.call_count, 1)
+            self.assertEqual(dc.return_value.add.call_count, 0)
+
+    def test_proxy_doesnt_skip_em_creation(self):
+        hpc = self._hpcWithMockedConn(is_fuzzer=False) 
+
+        write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
+
+        with patch('unicornbottle.proxy.database_connect') as dc:
+            dc.return_value.execute.return_value.scalar.return_value = None
+
+            hpc.thread_postgres_write(write)
+
+            self.assertEqual(dc.call_count, 1)
+            self.assertEqual(dc.return_value.add.call_count, 2)
+
 if __name__ == '__main__':
     unittest.main()
 
