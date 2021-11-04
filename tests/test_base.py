@@ -120,8 +120,8 @@ OK"""
         return hpc
 
     def _dwi(self):
-        dwi = DatabaseWriteItem(self.TEST_GUID, self._req().toMITM(),
-                self._resp().toMITM(), None)
+        dwi = DatabaseWriteItem(request=self._req().toMITM(),
+                response=self._resp().toMITM(), exception=None, target_guid=self.TEST_GUID)
 
         return dwi
 

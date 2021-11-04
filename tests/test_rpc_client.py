@@ -332,17 +332,20 @@ class TestRPCClient(TestBase):
             assert req_resp.sent_by_fuzzer == True
 
     def test_fuzzer_skips_em_creation(self):
+        """
+        We don't want the garbage that the fuzzer generates polluting the database.
+        """
         hpc = self._hpcWithMockedConn(is_fuzzer=True) 
 
         write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
+        
+        hpc.thread_postgres_write = MagicMock(spec=HTTPProxyClient.thread_postgres_write)
 
-        with patch('unicornbottle.proxy.database_connect') as dc:
-            dc.return_value.execute.return_value.scalar.return_value = None
+        dwi = self._dwi()
+        hpc.db_write_queue.put(dwi)
 
-            hpc.thread_postgres_write(write)
-
-            self.assertEqual(dc.call_count, 1)
-            self.assertEqual(dc.return_value.add.call_count, 0)
+        hpc.thread_postgres_read_queue()
+        self.assertEqual(hpc.thread_postgres_write.call_count, 0)
 
     def test_proxy_doesnt_skip_em_creation(self):
         hpc = self._hpcWithMockedConn(is_fuzzer=False) 
