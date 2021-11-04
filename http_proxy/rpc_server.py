@@ -121,7 +121,7 @@ class RPCServer(object):
         except json.decoder.JSONDecodeError:
             msg = b"Couldn't decode a JSON object and am having a bad time. Body '%r'." % body
             logger.exception(msg)
-            return self.send_error_response(ch, props, 503, msg)
+            return self.send_error_response(ch, props, 418, msg)
 
         try:
             logger.debug("%s:Received." % (corr_id))
@@ -131,7 +131,7 @@ class RPCServer(object):
         except:
             msg = b"rpc_server.py could not proxy message to destination. %s" % (request.pretty_url.encode('utf-8'))
             logger.exception(msg)
-            self.send_error_response(ch, props, 502, msg)
+            self.send_error_response(ch, props, 418, msg)
 
     def send_error_response(self, ch : BlockingChannel, props :
             pika.spec.BasicProperties, status_code:int, message:bytes) -> None:
