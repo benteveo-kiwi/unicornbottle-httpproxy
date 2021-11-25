@@ -57,7 +57,7 @@ class TestRPCClient(TestBase):
 
     def test_call_timeout(self):
         hpc = self._hpcWithMockedConn()
-        hpc.PROCESS_TIME_LIMIT = 0.00001
+        hpc.REQUEST_TIMEOUT = 0.00001
 
         with self.assertRaises(TimeoutException):
             ret = hpc.send_request(self._req().toMITM(), "corr_id")
@@ -152,8 +152,6 @@ class TestRPCClient(TestBase):
 
         body = req.toMITM()
         hpc.responses[corr_id] = self._resp().toJSON()
-        with self.assertRaises(UnauthorizedException):
-            hpc.send_request(body, corr_id)
 
         self.assertEqual(hpc.db_write_queue.put.call_count, 0)
 
@@ -171,9 +169,8 @@ class TestRPCClient(TestBase):
 
         body = req.toMITM()
         hpc.responses[corr_id] = self._resp().toJSON()
-        with self.assertRaises(UnauthorizedException):
-            hpc.send_request(body, corr_id)
 
+        hpc.send_request(body, corr_id)
         self.assertEqual(hpc.db_write_queue.put.call_count, 0)
 
     def test_queue_write_timeout(self):
@@ -292,13 +289,15 @@ class TestRPCClient(TestBase):
         write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
 
         with patch('unicornbottle.proxy.database_connect') as dc:
+            conn = dc.return_value.__enter__()
+
             hpc.thread_postgres_write(write)
 
             self.assertEqual(dc.call_count, 1)
-            self.assertEqual(dc.return_value.add.call_count, 1)
+            self.assertEqual(conn.add.call_count, 1)
 
-            req_resp = dc.return_value.add.call_args.args[0]
-            self.assertEqual(req_resp.metadata_id, dc().execute().scalar.return_value.id)
+            req_resp = conn.add.call_args.args[0]
+            self.assertEqual(req_resp.metadata_id, conn.execute().scalar.return_value.id)
 
             self.assertEqual(type(req_resp), RequestResponse)
             self.assertEqual(req_resp.method, "GET")
@@ -314,22 +313,6 @@ class TestRPCClient(TestBase):
 
         hpc.thread_postgres_read_queue()
         self.assertEqual(hpc.thread_postgres_write.call_count, 1)
-
-    def test_fuzzer_flag_set_in_db(self):
-        hpc = self._hpcWithMockedConn(is_fuzzer=True) 
-
-        write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
-
-        with patch('unicornbottle.proxy.database_connect') as dc:
-            hpc.thread_postgres_write(write)
-
-            self.assertEqual(dc.call_count, 1)
-            self.assertEqual(dc.return_value.add.call_count, 1)
-
-            req_resp = dc.return_value.add.call_args.args[0]
-            self.assertEqual(req_resp.metadata_id, dc().execute().scalar.return_value.id)
-
-            assert req_resp.sent_by_fuzzer == True
 
     def test_fuzzer_skips_em_creation(self):
         """
@@ -353,12 +336,13 @@ class TestRPCClient(TestBase):
         write = {self.TEST_GUID: [RequestResponse.createFromDWI(self._dwi())]}
 
         with patch('unicornbottle.proxy.database_connect') as dc:
-            dc.return_value.execute.return_value.scalar.return_value = None
+            conn = dc.return_value.__enter__()
+            conn.execute.return_value.scalar.return_value = None
 
             hpc.thread_postgres_write(write)
 
             self.assertEqual(dc.call_count, 1)
-            self.assertEqual(dc.return_value.add.call_count, 2)
+            self.assertEqual(conn.add.call_count, 2)
 
 if __name__ == '__main__':
     unittest.main()

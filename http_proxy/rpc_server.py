@@ -17,7 +17,7 @@ import ssl
 import time
 
 logger = logging.getLogger(__name__)
-TIMEOUT = 15
+TIMEOUT = 10
 
 class RPCServer(object):
     """
