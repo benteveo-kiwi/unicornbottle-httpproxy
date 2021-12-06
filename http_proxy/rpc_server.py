@@ -26,7 +26,7 @@ class RPCServer(object):
     required is preferred as this avoids concurrency issues due to Python's GIL.
     """
 
-    def get_raw_request(self, request : mitmproxy.net.http.Request) -> bytes:
+    def get_raw_request(self, request : mitmproxy.http.Request) -> bytes:
         """
         Obtains the assembled raw bytes required for sending through a socket
         from a MITM Request object.
@@ -39,8 +39,8 @@ class RPCServer(object):
         
         return raw_request
 
-    def parse_response(self, request : mitmproxy.net.http.Request, 
-            socket : socket.socket) -> mitmproxy.net.http.Response:
+    def parse_response(self, request : mitmproxy.http.Request, 
+            socket : socket.socket) -> mitmproxy.http.Response:
         """
         Instructs internal mitmproxy methods to parse the response from socket.
         
@@ -51,11 +51,11 @@ class RPCServer(object):
             response: the parsed response object with content populated.
         """
         response_file = socket.makefile(mode='rb')
-        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request)
+        parsed_response : mitmproxy.http.Response = http1.read_response(response_file, request)
 
         return parsed_response
 
-    def get_socket(self, request : mitmproxy.net.http.Request) -> socket.socket:
+    def get_socket(self, request : mitmproxy.http.Request) -> socket.socket:
         """
         Gets the appropriate socket for the passed-in request. If SSL is
         required based on the request, a SSL wrapper is configured and returned
@@ -87,7 +87,7 @@ class RPCServer(object):
         else:
             return sock
 
-    def send_request(self, request : mitmproxy.net.http.Request) -> mitmproxy.net.http.Response:
+    def send_request(self, request : mitmproxy.http.Request) -> mitmproxy.http.Response:
         """
         Main connection handler. Opens a socket, optionally wrapping with SSL
         if required and sends to destination.
@@ -105,7 +105,6 @@ class RPCServer(object):
         response = self.parse_response(request, sock)
 
         return response
-
 
     def on_request(self, ch : BlockingChannel, method : Any, props :
             pika.spec.BasicProperties, body : bytes) -> None:
@@ -146,11 +145,11 @@ class RPCServer(object):
             status_code: the HTTP status code to set in the response.
             message: the HTTP response body bytes.
         """
-        response = mitmproxy.http.HTTPResponse.make(status_code, message)
+        response = mitmproxy.http.Response.make(status_code, message)
         self.send_response(ch, props, response)
     
     def send_response(self, ch : BlockingChannel, props :
-            pika.spec.BasicProperties, response : mitmproxy.http.HTTPResponse) -> None:
+            pika.spec.BasicProperties, response : mitmproxy.http.Response) -> None:
         """
         Sends the response back to the queue.
 

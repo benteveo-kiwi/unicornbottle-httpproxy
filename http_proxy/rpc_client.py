@@ -26,7 +26,7 @@ class HTTPProxyAddon(object):
         logger.error("EXITING CLEANLY due to Ctrl-C.")
         self.client.threads_shutdown()
 
-    @concurrent # type: ignore
+    @concurrent # type:ignore
     def request(self, flow: mitmproxy.http.HTTPFlow) -> None:
         """
         Main mitmproxy entry point. This function gets called on each request
@@ -58,6 +58,6 @@ class HTTPProxyAddon(object):
             logger.debug("%s:Done handling request. Total time %s seconds" % (corr_id, time.time() - time_start))
         except:
             logger.exception("Unhandled exception in request thread.", exc_info=True)
-            flow.response = mitmproxy.http.HTTPResponse.make(502, b"502 Exception")
+            flow.response = mitmproxy.http.Response.make(502, b"502 Exception")
 
 
