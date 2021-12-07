@@ -35,7 +35,7 @@ class RPCServer(object):
             request: https://docs.mitmproxy.org/dev/api/mitmproxy/http.html
         """
         request.decode(strict=False)
-        raw_request : bytes = assemble.assemble_request(request)
+        raw_request : bytes = assemble.assemble_request(request) # type: ignore
         
         return raw_request
 
@@ -51,7 +51,7 @@ class RPCServer(object):
             response: the parsed response object with content populated.
         """
         response_file = socket.makefile(mode='rb')
-        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request)
+        parsed_response : mitmproxy.net.http.Response = http1.read_response(response_file, request) # type: ignore
 
         return parsed_response
 
@@ -159,7 +159,7 @@ class RPCServer(object):
             props: as passed in by pika.
             response: the response to encode and send.
         """
-        response_body = Response(response.get_state()).toJSON()
+        response_body = Response(response.get_state()).toJSON() # type:ignore
 
         if props.reply_to is None:
             msg = b"Received message without routing key. Cannot send reply."
@@ -168,7 +168,7 @@ class RPCServer(object):
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
         ch.basic_publish(exchange='', routing_key=props.reply_to,
-                properties=my_props, body=response_body.encode('utf-8'))
+                properties=my_props, body=response_body.encode('utf-8')) # type: ignore
 
 def listen() -> None:
     channel = None
