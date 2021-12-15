@@ -14,11 +14,9 @@ This module uses `git submodules` to share code with other repositories. In orde
 git clone --recurse-submodules <URL>
 ```
 
-# Installation
+# Installation & Python dependencies.
 
-```
-pip install -r requirements.txt requirements_test.txt
-```
+Please see unicornbottle-dev/README.md for more info.
 
 # To run:
 
