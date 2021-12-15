@@ -47,18 +47,3 @@ To run an individual test:
 pytest -s -k "test_db_write"
 ```
 
-# Type Checking
-
-The code within this repository supports type checking. This should prevent
-dumb errors that can easily be avoided by it. You can install the pre-commit
-hook by running the following command:
-
-```
-cp pre_commit_hook/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-```
-
-You can also run static type checks with: 
-
-```
-mypy http_proxy/ rpc_addon.py --exclude 'test.*' --ignore-missing-imports`
-```
