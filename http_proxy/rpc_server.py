@@ -129,7 +129,9 @@ class RPCServer(object):
             logger.debug("%s:Successfully sent message and got response in %s seconds. Writing to response queue." % (corr_id, time.time() - start_time) )
             return self.send_response(ch, props, response)
         except:
-            msg = b"rpc_server.py could not proxy message to destination. %s" % (request.pretty_url.encode('utf-8'))
+            msg = b"rpc_server.py could not proxy message to destination host %s %s" % (request.host.encode('utf-8'),
+                request.pretty_url.encode('utf-8'))
+
             logger.exception(msg)
             self.send_error_response(ch, props, 418, msg)
 
