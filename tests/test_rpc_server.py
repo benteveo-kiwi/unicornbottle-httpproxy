@@ -80,3 +80,6 @@ class TestRPCServer(TestBase):
 
         self.assertEqual(ssl_cdc().wrap_socket(), returned_socket) # scheme == http on default test request.
 
+    def test_colon_in_host(self):
+        assert False
+
