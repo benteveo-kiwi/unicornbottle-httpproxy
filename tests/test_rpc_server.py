@@ -80,6 +80,27 @@ class TestRPCServer(TestBase):
 
         self.assertEqual(ssl_cdc().wrap_socket(), returned_socket) # scheme == http on default test request.
 
-    def test_colon_in_host(self):
-        assert False
+    @patch("socket.socket", autospec=True)
+    def test_get_socket_colon_in_host(self, socket):
+        """
+        When connecting to a host on a non-standard port, mitmproxy passes the
+        port as part of the `host` value. Passing this value to socket.socket
+        causes a socket.gaierror: [Errno -2] Name or service not known.
+        """
+        server = self._getServer()
+        server.get_socket = MagicMock(spec=RPCServer.get_socket, return_value=socket.return_value)
+        server.parse_response = MagicMock(spec=RPCServer.parse_response)
+        server.get_raw_request = MagicMock(spec=RPCServer.get_raw_request)
+
+        req_obj = self._req()
+        req_obj.state['host'] = 'host:8080'
+        req_obj.state['port'] = 8080
+        req = req_obj.toMITM()
+
+        resp = server.send_request(req)
+
+        sock_instance = socket.return_value
+
+        self.assertEqual(sock_instance.connect.call_count, 1)
+        self.assertEqual(sock_instance.connect.call_args[0][0], ('host', 8080))
 

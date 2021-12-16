@@ -96,16 +96,22 @@ class RPCServer(object):
             request: the request as sent by the proxy. It will be assembled and
                 sent.
         """
-        sock = self.get_socket(request)
-        sock.connect((request.host, request.port))
+        # Remove port from "hostname.com:port" strings.
+        host = request.host
+        if ':' in host:
+            host = host.split(':')[0]
 
+        # Connect to port.
+        sock = self.get_socket(request)
+        sock.connect((host, request.port))
+
+        # Send bytes.
         request_bytes = self.get_raw_request(request)
         sock.send(request_bytes)
 
+        # Receive bytes.
         response = self.parse_response(request, sock)
-
         return response
-
 
     def on_request(self, ch : BlockingChannel, method : Any, props :
             pika.spec.BasicProperties, body : bytes) -> None:

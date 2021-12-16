@@ -344,6 +344,21 @@ class TestRPCClient(TestBase):
             self.assertEqual(dc.call_count, 1)
             self.assertEqual(conn.add.call_count, 2)
 
+    @patch("unicornbottle.proxy.partial", autospec=True)
+    def test_tags_traffic(self, ftp):
+        corr_id = uuid.uuid4()
+
+        hpc = self._hpcWithMockedConn() 
+        hpc.responses[corr_id] = self._resp().toJSON()
+        request = self._req().toMITM()
+
+        ret = hpc.send_request(request, corr_id)
+
+        args, kwargs = ftp.call_args
+        headers = Request.fromJSON(kwargs['body']).state['headers']
+        assert [b'X-Hackerone', b'benteveo'] in headers
+        assert False # should remove X-UB* headers.
+
 if __name__ == '__main__':
     unittest.main()
 
