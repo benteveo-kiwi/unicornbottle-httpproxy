@@ -49,11 +49,13 @@ class TestRPCClient(TestBase):
 
         self.assertEqual(hpc.rabbit_connection.add_callback_threadsafe.call_count, 1)
         self.assertEqual(args[0], hpc.channel.basic_publish)
-        self.assertEqual(kwargs['body'], self._req().toJSON())
         self.assertEqual(kwargs['properties'].correlation_id, corr_id)
         self.assertEqual(kwargs['properties'].reply_to, hpc.callback_queue)
 
         self.assertEqual(ret.status_code, 309) # made up status to ensure the response is the same.
+        
+        sent_req = Request.fromJSON(kwargs['body']).toMITM()
+        assert sent_req.pretty_url == body.pretty_url
 
     def test_call_timeout(self):
         hpc = self._hpcWithMockedConn()
@@ -343,6 +345,33 @@ class TestRPCClient(TestBase):
 
             self.assertEqual(dc.call_count, 1)
             self.assertEqual(conn.add.call_count, 2)
+
+    @patch("unicornbottle.proxy.partial", autospec=True)
+    def test_modify_headers(self, ftp):
+        """
+        Test that it tags traffic appropriately and also removes our internal
+        headers.
+        """
+        corr_id = uuid.uuid4()
+
+        hpc = self._hpcWithMockedConn() 
+        hpc.responses[corr_id] = self._resp().toJSON()
+        request = self._req().toMITM()
+
+        ret = hpc.send_request(request, corr_id)
+
+        args, kwargs = ftp.call_args
+        headers = Request.fromJSON(kwargs['body']).state['headers']
+        assert [b'X-Hackerone', b'benteveo'] in headers
+
+        found_headers = False
+        for header in headers:
+            if header[0].startswith(b'X-UB'):
+                found_headers = True
+                break
+
+        assert not found_headers
+
 
 if __name__ == '__main__':
     unittest.main()
