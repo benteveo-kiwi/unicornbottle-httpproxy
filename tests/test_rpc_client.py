@@ -364,13 +364,25 @@ class TestRPCClient(TestBase):
         headers = Request.fromJSON(kwargs['body']).state['headers']
         assert [b'X-Hackerone', b'benteveo'] in headers
 
-        found_headers = False
-        for header in headers:
-            if header[0].startswith(b'X-UB'):
-                found_headers = True
-                break
+    def test_queue_write_x_ub_guid(self):
+        """
+        Ensure write requests to the DB contain the X-UB header. This header is
+        required for database writes.
+        """
+        hpc = self._hpcWithMockedConn() 
+        hpc.db_write_queue = MagicMock()
+        hpc.get_response = MagicMock()
 
-        assert not found_headers
+        corr_id = uuid.uuid4()
+        body = self._req().toMITM()
+        hpc.responses[corr_id] = self._resp().toJSON()
+        ret = hpc.send_request(body, corr_id)
+
+        self.assertEqual(hpc.db_write_queue.put.call_count, 1)
+
+        dwi = hpc.db_write_queue.put.call_args[0][0]
+
+        assert hpc.UB_GUID_HEADER in dwi.request.headers
 
 
 if __name__ == '__main__':
