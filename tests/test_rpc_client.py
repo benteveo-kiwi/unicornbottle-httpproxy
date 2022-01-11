@@ -48,7 +48,7 @@ class TestRPCClient(TestBase):
         args, kwargs = ftp.call_args
 
         self.assertEqual(hpc.rabbit_connection.add_callback_threadsafe.call_count, 1)
-        self.assertEqual(args[0], hpc.channel.basic_publish)
+        self.assertEqual(args[2], hpc.channel.basic_publish)
         self.assertEqual(kwargs['properties'].correlation_id, corr_id)
         self.assertEqual(kwargs['properties'].reply_to, hpc.callback_queue)
 
