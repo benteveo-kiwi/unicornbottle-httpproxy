@@ -119,28 +119,30 @@ class RPCServer(object):
         Callback endpoint called by pika. For more documentation on the arguments, please
         @see: https://pika.readthedocs.io/en/stable/modules/channel.html#pika.channel.Channel.basic_consume
         """
-
-        corr_id = props.correlation_id
-        start_time = time.time()
         try:
-            request = Request.fromJSON(body).toMITM()
-        except json.decoder.JSONDecodeError:
-            msg = b"Couldn't decode a JSON object and am having a bad time. Body '%r'." % body
-            logger.exception(msg)
-            return self.send_error_response(ch, props, 418, msg)
+            corr_id = props.correlation_id
+            start_time = time.time()
+            try:
+                request = Request.fromJSON(body).toMITM()
+            except json.decoder.JSONDecodeError:
+                msg = b"Couldn't decode a JSON object and am having a bad time. Body '%r'." % body
+                logger.exception(msg)
+                return self.send_error_response(ch, props, 418, msg)
 
-        try:
-            logger.debug("%s:Received." % (corr_id))
-            response = self.send_request(request)
-            logger.debug("%s:Successfully sent message and got response in %s seconds. Writing to response queue." % (corr_id, time.time() - start_time) )
-            return self.send_response(ch, props, response)
-        except:
-            msg = b"rpc_server.py could not proxy message to destination host %s port %s p_url %s" % (request.host.encode('utf-8'),
-                str(request.port).encode('utf-8'),
-                request.pretty_url.encode('utf-8'))
+            try:
+                logger.debug("%s:Received." % (corr_id))
+                response = self.send_request(request)
+                logger.debug("%s:Successfully sent message and got response in %s seconds. Writing to response queue." % (corr_id, time.time() - start_time) )
+                return self.send_response(ch, props, response)
+            except:
+                msg = b"rpc_server.py could not proxy message to destination host %s port %s p_url %s" % (request.host.encode('utf-8'),
+                    str(request.port).encode('utf-8'),
+                    request.pretty_url.encode('utf-8'))
 
-            logger.exception(msg)
-            self.send_error_response(ch, props, 418, msg)
+                logger.exception(msg)
+                self.send_error_response(ch, props, 418, msg)
+        finally:
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def send_error_response(self, ch : BlockingChannel, props :
             pika.spec.BasicProperties, status_code:int, message:bytes) -> None:
@@ -184,13 +186,17 @@ def listen() -> None:
     connection = None
     try:
         connection = rabbitmq_connect()
+
         channel = connection.channel()
+
+        # A reduced prefetch is essential to prevent the propagation of timeouts. 
+        channel.basic_qos(prefetch_count=1)
         channel.queue_declare(queue='rpc_queue')
 
         rpc_server = RPCServer()
 
-        channel.basic_qos(prefetch_count=1)
-        channel.basic_consume(queue='rpc_queue', on_message_callback=rpc_server.on_request, auto_ack=True)
+        # WARNING: enabling auto_ack in this method results in prefetch_count being ignored.
+        channel.basic_consume(queue='rpc_queue', on_message_callback=rpc_server.on_request)
 
         logger.info("HTTP Server consumer started successfully. Listening for messages.")
 
