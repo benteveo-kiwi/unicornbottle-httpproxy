@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unicornbottle-httpproxy"
-version = "0.1.28"
+version = "0.1.29"
 description = ""
 authors = ["Sam Joan <sam@roque-worcel.com>"]
 
