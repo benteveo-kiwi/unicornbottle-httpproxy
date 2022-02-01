@@ -1,8 +1,8 @@
 from http_proxy import log
 from http_proxy.models import Request, Response
-from mitmproxy.net.http import http1
 from mitmproxy.net.http.http1 import assemble
 from mitmproxy.net.http.http1.read import read_response_head
+from mitmproxy.net.http import http1
 from pika.adapters.blocking_connection import BlockingChannel
 from typing import Dict, Optional, Any
 from unicornbottle.rabbitmq import rabbitmq_connect
@@ -12,6 +12,7 @@ import logging
 import mitmproxy.http
 import mitmproxy.net.http
 import pika
+import random
 import socket
 import ssl
 import time
@@ -182,6 +183,11 @@ class RPCServer(object):
                 properties=my_props, body=response_body.encode('utf-8')) # type: ignore
 
 def listen() -> None:
+    # Add a random delay to avoid 100 workers attempting to connect to RabbitMQ
+    # at exactly the same time.
+    logger.debug("Waking up.")
+    time.sleep(random.randint(0, 10))
+
     channel = None
     connection = None
     try:
