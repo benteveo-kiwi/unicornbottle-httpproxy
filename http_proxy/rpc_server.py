@@ -128,7 +128,7 @@ class RPCServer(object):
             except json.decoder.JSONDecodeError:
                 msg = b"Couldn't decode a JSON object and am having a bad time. Body '%r'." % body
                 logger.exception(msg)
-                return self.send_error_response(ch, props, 418, msg)
+                return self.send_error_response(ch, props, 502, msg)
 
             try:
                 logger.debug("%s:Received." % (corr_id))
@@ -141,7 +141,7 @@ class RPCServer(object):
                     request.pretty_url.encode('utf-8'))
 
                 logger.exception(msg)
-                self.send_error_response(ch, props, 418, msg)
+                self.send_error_response(ch, props, 504, msg)
         finally:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -179,8 +179,14 @@ class RPCServer(object):
             raise
 
         my_props = pika.BasicProperties(correlation_id = props.correlation_id)
-        ch.basic_publish(exchange='', routing_key=props.reply_to,
-                properties=my_props, body=response_body.encode('utf-8')) # type: ignore
+        encoded_body = response_body.encode('utf-8')
+        # Must not exceed max_message_size https://www.rabbitmq.com/configure.html
+        if len(encoded_body) <= 130000000:
+            ch.basic_publish(exchange='', routing_key=props.reply_to,
+                    properties=my_props, body=encoded_body) # type: ignore
+        else:
+            logger.info("Message response too large, returning 502.")
+            self.send_error_response(ch, my_props, 502, "Message response too large.")
 
 def listen() -> None:
     # Add a random delay to avoid 100 workers attempting to connect to RabbitMQ
