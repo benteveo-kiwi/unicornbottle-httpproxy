@@ -186,7 +186,7 @@ class RPCServer(object):
                     properties=my_props, body=encoded_body) # type: ignore
         else:
             logger.info("Message response too large, returning 502.")
-            self.send_error_response(ch, my_props, 502, "Message response too large.")
+            self.send_error_response(ch, my_props, 502, b"Message response too large.")
 
 def listen() -> None:
     # Add a random delay to avoid 100 workers attempting to connect to RabbitMQ
